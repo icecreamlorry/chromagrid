@@ -472,7 +472,14 @@ async function enterRoom(code, playerIndex, name, room) {
 
 function ensureBoard() {
   if (goboard) return;
-  goboard = createBoard($('board'), { onSquare: onBoardSquare });
+  goboard = createBoard($('board'), {
+    onSquare: onBoardSquare,
+    draggable: (r, c) => isMyTurn() && !!app.state.board[r][c] && app.state.board[r][c][0] === myColor(),
+    dragTargets: (r, c) => legalMovesFrom(app.state, r, c).map((m) => ({
+      to: m.to, capture: !!app.state.board[m.to[0]][m.to[1]] || m.flag === 'ep',
+    })),
+    onDrop: onBoardDrop,
+  });
 }
 
 // ---- Turn notifications --------------------------------------------------
@@ -803,6 +810,25 @@ function onBoardSquare(r, c) {
   }
   // Otherwise deselect.
   clearSelection();
+  renderBoard();
+}
+
+// A piece was dragged from `from` and dropped on `to` (which may be illegal).
+// A legal target plays the move; anything else just leaves the piece selected
+// with its dots showing, so the player can still tap a destination.
+function onBoardDrop(from, to) {
+  if (!isMyTurn()) return;
+  const legal = legalMovesFrom(app.state, from[0], from[1]);
+  app.selected = from;
+  app.targets = legal.map((m) => ({
+    to: m.to, capture: !!app.state.board[m.to[0]][m.to[1]] || m.flag === 'ep',
+  }));
+  if (to && legal.some((m) => m.to[0] === to[0] && m.to[1] === to[1])) {
+    if (isPromotion(app.state, from, to)) { openPromo(from, to); return; }
+    clearSelection();
+    doMove(from, to);
+    return;
+  }
   renderBoard();
 }
 

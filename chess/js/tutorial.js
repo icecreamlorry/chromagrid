@@ -70,9 +70,35 @@ function annotationsFor(s) {
   };
 }
 
+function canDrag(r, c) {
+  const s = step();
+  if (!isTask(s) || stepCleared(stepIdx) || !workPos) return false;
+  const p = workPos.board[r][c];
+  if (!p || p[0] !== workPos.toMove) return false;
+  if (s.task.allowFrom && !s.task.allowFrom.some((a) => eq(a, [r, c]))) return false;
+  return true;
+}
+function dragTargetsFor(r, c) {
+  return genLegal(workPos).filter((m) => eq(m.from, [r, c])).map((m) => ({
+    to: m.to, capture: !!workPos.board[m.to[0]][m.to[1]] || m.flag === 'ep',
+  }));
+}
+function onBoardDrop(from, to) {
+  const s = step();
+  if (!isTask(s) || stepCleared(stepIdx)) return;
+  if (to && genLegal(workPos).some((m) => eq(m.from, from) && eq(m.to, to))) {
+    attemptMove(from, to);
+    return;
+  }
+  tSelected = null; tTargets = [];
+  paint(annotationsFor(s));
+}
+
 export function initTutorial(exitCallback) {
   onExit = exitCallback;
-  board = createBoard($('tut-board'), { onSquare: onBoardSquare });
+  board = createBoard($('tut-board'), {
+    onSquare: onBoardSquare, draggable: canDrag, dragTargets: dragTargetsFor, onDrop: onBoardDrop,
+  });
 
   $('tut-prev').addEventListener('click', () => go(-1));
   $('tut-next').addEventListener('click', () => go(1));
