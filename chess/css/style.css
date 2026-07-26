@@ -144,17 +144,22 @@ input, textarea { user-select: text; }
   display: flex; flex-direction: column; gap: 10px;
   flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch;
 }
+/* Two rows: name on top (kept to one line), then the material/clock/turn
+   cluster below — so a long name is preserved instead of being cut off, and the
+   "your turn" pill never wraps inside itself. */
 .player-panel {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; gap: 6px;
   background: var(--panel); border-radius: var(--item-radius); padding: 10px 16px;
 }
-.player-name { font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.pp-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-meta { justify-content: flex-end; gap: 8px; }
+.player-name { font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
 .player-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.material { color: var(--muted); font-size: 16px; margin-left: auto; letter-spacing: -2px; line-height: 1; white-space: nowrap; }
+.material { color: var(--muted); font-size: 16px; letter-spacing: -2px; line-height: 1; white-space: nowrap; }
 .material .adv { font-size: 12px; letter-spacing: 0; margin-left: 4px; font-weight: 700; color: var(--good); }
 .clock {
   font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px;
-  background: var(--panel-light); border-radius: 8px; padding: 4px 10px; margin-left: 6px;
+  background: var(--panel-light); border-radius: 8px; padding: 4px 10px;
   color: var(--muted); min-width: 62px; text-align: center;
 }
 .clock.active { color: var(--text); }
@@ -162,7 +167,7 @@ input, textarea { user-select: text; }
 .clock.hidden { display: none; }
 .turn-marker {
   background: var(--good); color: #11321e; font-size: 12px; font-weight: 700;
-  border-radius: 999px; padding: 3px 10px; margin-left: 6px;
+  border-radius: 999px; padding: 3px 10px; white-space: nowrap;
 }
 .online-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
 .online-dot.online { background: var(--good); }

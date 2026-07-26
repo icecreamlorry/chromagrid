@@ -67,11 +67,15 @@
     <div class="table">
       <!-- Opponent sits across the board -->
       <div id="opp-panel" class="player-panel opp-panel">
-        <span id="opp-online" class="online-dot offline" title="offline"></span>
-        <span id="opp-name" class="player-name">Waiting for opponent…</span>
-        <span id="opp-material" class="material"></span>
-        <span id="opp-clock" class="clock"></span>
-        <span id="opp-turn" class="turn-marker hidden">their turn</span>
+        <div class="pp-row pp-id">
+          <span id="opp-online" class="online-dot offline" title="offline"></span>
+          <span id="opp-name" class="player-name">Waiting for opponent…</span>
+        </div>
+        <div class="pp-row pp-meta">
+          <span id="opp-material" class="material"></span>
+          <span id="opp-clock" class="clock"></span>
+          <span id="opp-turn" class="turn-marker hidden">their turn</span>
+        </div>
       </div>
 
       <div class="board-wrap">
@@ -120,11 +124,15 @@
       </div>
 
       <div class="player-panel my-panel">
-        <span id="my-online" class="online-dot online" title="Connected"></span>
-        <span id="my-name" class="player-name"></span>
-        <span id="my-material" class="material"></span>
-        <span id="my-clock" class="clock"></span>
-        <span id="my-turn" class="turn-marker hidden">your turn</span>
+        <div class="pp-row pp-id">
+          <span id="my-online" class="online-dot online" title="Connected"></span>
+          <span id="my-name" class="player-name"></span>
+        </div>
+        <div class="pp-row pp-meta">
+          <span id="my-material" class="material"></span>
+          <span id="my-clock" class="clock"></span>
+          <span id="my-turn" class="turn-marker hidden">your turn</span>
+        </div>
       </div>
 
       <p id="status-line" class="status-line"></p>
