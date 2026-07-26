@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1c2733">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chess">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Configures the shared account layer (account-ui.js / lobby-ui.js) for Chess.
+    window.LB_CONFIG = { gameSlug: 'chess', gameName: 'Chess', history: true, daily: false, defaultTheme: 'maritime' };
+  </script>
+  <script src="../shared/theme-boot.js"></script>
+</head>
+<body>
+
+  <!-- Boot veil + pre-paint auth hint (lifted by the boot code via LBBoot.done()) -->
+  <script src="../shared/boot.js"></script>
+
+  <!-- Landing screen -->
+  <section id="screen-landing" class="screen">
+    <div class="landing-card">
+      <h1 class="logo">Chess</h1>
+      <p class="tagline">The classic game of kings — play a friend in real time or over days.</p>
+      <input id="landing-name-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off">
+      <div class="landing-buttons">
+        <button id="btn-create" class="btn-primary">New Game</button>
+        <button id="btn-join" class="btn-ghost">Join a Room</button>
+      </div>
+      <div id="join-box" class="join-box hidden">
+        <input id="code-input" type="text" maxlength="6" placeholder="Room code" autocomplete="off">
+        <button id="btn-join-go" class="btn-primary">Join</button>
+      </div>
+      <p id="landing-error" class="error-text"></p>
+
+      <!-- Account bar markup injected by shared/lobby-ui.js -->
+      <div id="account-bar"></div>
+    </div>
+  </section>
+
+  <!-- Lobby ("My Games") — signed-in players; markup injected by shared/lobby-ui.js -->
+  <section id="screen-lobby" class="screen hidden"></section>
+
+  <!-- Game screen -->
+  <section id="screen-game" class="screen hidden">
+    <header class="game-header">
+      <span class="logo logo-small">Chess</span>
+      <button id="room-code-chip" class="chip" title="Click to copy">Room: <strong id="room-code-text"></strong></button>
+      <button id="btn-draw" class="chip chip-button hidden" title="Offer a draw">½ Draw</button>
+      <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Forfeit this game">Resign</button>
+      <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/>
+          <path d="M10 5.2 13 8l-3 2.8"/>
+          <path d="M13 8H6"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="table">
+      <!-- Opponent sits across the board -->
+      <div id="opp-panel" class="player-panel opp-panel">
+        <span id="opp-online" class="online-dot offline" title="offline"></span>
+        <span id="opp-name" class="player-name">Waiting for opponent…</span>
+        <span id="opp-material" class="material"></span>
+        <span id="opp-clock" class="clock"></span>
+        <span id="opp-turn" class="turn-marker hidden">their turn</span>
+      </div>
+
+      <div class="board-wrap">
+        <div id="board" class="board"></div>
+
+        <div id="draw-banner" class="draw-banner hidden">
+          <span id="draw-banner-text">Your opponent offers a draw.</span>
+          <span class="draw-banner-btns">
+            <button id="btn-draw-accept" class="btn-primary">Accept</button>
+            <button id="btn-draw-decline" class="btn-ghost">Decline</button>
+          </span>
+        </div>
+
+        <div id="start-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="start-title">Ready to play?</h2>
+            <p id="start-time" class="start-time"></p>
+            <p id="start-versus"></p>
+            <p id="start-share" class="hidden">Share the room code <strong id="start-code"></strong> with a friend to begin.</p>
+            <button id="btn-start" class="btn-primary hidden">Start Game</button>
+            <p id="start-waiting" class="muted hidden">Waiting for the host to start the game…</p>
+          </div>
+        </div>
+
+        <div id="gameover-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="gameover-title"></h2>
+            <div id="gameover-detail"></div>
+            <button id="btn-rematch" class="btn-primary">Rematch</button>
+          </div>
+        </div>
+
+        <!-- Promotion picker -->
+        <div id="promo-overlay" class="board-overlay hidden">
+          <div class="overlay-card promo-card">
+            <h2>Promote to…</h2>
+            <div class="promo-choices">
+              <button class="promo-choice" data-promo="q" aria-label="Queen">♛</button>
+              <button class="promo-choice" data-promo="r" aria-label="Rook">♜</button>
+              <button class="promo-choice" data-promo="b" aria-label="Bishop">♝</button>
+              <button class="promo-choice" data-promo="n" aria-label="Knight">♞</button>
+            </div>
+            <button id="promo-cancel" class="btn-ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="player-panel my-panel">
+        <span id="my-online" class="online-dot online" title="Connected"></span>
+        <span id="my-name" class="player-name"></span>
+        <span id="my-material" class="material"></span>
+        <span id="my-clock" class="clock"></span>
+        <span id="my-turn" class="turn-marker hidden">your turn</span>
+      </div>
+
+      <p id="status-line" class="status-line"></p>
+    </div>
+  </section>
+
+  <!-- Tutorial (Training) screen -->
+  <section id="screen-tutorial" class="screen hidden">
+    <header class="tut-header">
+      <div class="tut-header-bar">
+        <button id="tut-exit" class="chip chip-button">← Exit</button>
+        <button id="tut-menu-btn" class="chip chip-button">Lessons</button>
+      </div>
+      <span id="tut-title" class="tut-title">Training</span>
+    </header>
+
+    <div class="tut-wrap">
+      <div id="tut-board" class="tut-board"></div>
+      <div class="tut-panel">
+        <div id="tut-badge" class="tut-badge"></div>
+        <p id="tut-text" class="tut-text"></p>
+        <p id="tut-feedback" class="tut-feedback"></p>
+        <div class="tut-nav">
+          <button id="tut-prev" class="tut-arrow" aria-label="Previous step">←</button>
+          <span id="tut-steps" class="tut-steps"></span>
+          <button id="tut-next" class="tut-arrow" aria-label="Next step">→</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tut-levels" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>Lessons</h2>
+          <button id="tut-levels-close" class="modal-close">&times;</button>
+        </div>
+        <div id="tut-levels-list" class="tut-levels-list"></div>
+      </div>
+    </div>
+
+    <div id="tut-complete" class="modal hidden">
+      <div class="modal-card modal-narrow">
+        <div class="modal-head"><h2 id="tut-complete-title">Lesson complete</h2></div>
+        <p id="tut-complete-msg"></p>
+        <div class="confirm-buttons">
+          <button id="tut-complete-menu" class="btn-ghost">All lessons</button>
+          <button id="tut-complete-next" class="btn-primary">Next lesson →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- New-game setup: time per move or training -->
+  <div id="modal-setup" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2>New game</h2></div>
+      <p id="setup-subtitle" class="muted">How long does each player get per move?</p>
+      <div id="setup-times" class="setup-times">
+        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer — play over days</span></button>
+        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Relaxed correspondence</span></button>
+        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>A move or two a day</span></button>
+        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Same-evening games</span></button>
+        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual, sit-down pace</span></button>
+        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast and sharp</span></button>
+      </div>
+      <button id="setup-training" class="setup-time setup-training"><strong>Training</strong><span>Learn the game — guided lessons</span></button>
+      <div class="confirm-buttons">
+        <button id="setup-cancel" class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic confirmation dialog (Chess-owned; unique ch-confirm-* ids) -->
+  <div id="modal-confirm" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2 id="ch-confirm-title">Are you sure?</h2></div>
+      <p id="ch-confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="ch-confirm-cancel" class="btn-ghost">Cancel</button>
+        <button id="ch-confirm-ok" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to play (opened by the shared menu's "How to play") -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-card modal-help-card">
+      <div class="modal-head">
+        <h2>How to play</h2>
+        <button id="help-close" class="modal-close">&times;</button>
+      </div>
+      <div class="help-body">
+        <section class="help-section">
+          <h3>The idea</h3>
+          <p>Chess is a battle between two armies. White moves first, then players alternate. You win by <strong>checkmating</strong> the enemy king — attacking it so that it cannot escape capture next move.</p>
+        </section>
+        <section class="help-section">
+          <h3>New to the game?</h3>
+          <p>Start with <strong>Training</strong> from the New Game menu — short, guided lessons take you from how each piece moves to checkmate, castling and a few basic tactics.</p>
+        </section>
+        <section class="help-section">
+          <h3>Making a move</h3>
+          <p>On your turn, tap one of <strong>your</strong> pieces to select it — its legal moves light up. Tap a highlighted square to move there. When a pawn reaches the far side you choose what it <strong>promotes</strong> to (usually a queen).</p>
+        </section>
+        <section class="help-section">
+          <h3>Special moves</h3>
+          <p><strong>Castling</strong> tucks your king to safety beside a rook (tap the king, then its two-square destination). <strong>En passant</strong> lets a pawn capture a pawn that has just rushed two squares past it. Both light up automatically when they're legal.</p>
+        </section>
+        <section class="help-section">
+          <h3>Per-move timer</h3>
+          <p>The host picks how long each side gets <strong>per move</strong> — from <strong>1 minute</strong> up to <strong>3 days</strong>, or <strong>Unlimited</strong> for no clock at all. If your clock runs out on your move, you lose on time (unless your opponent has too little material to checkmate, which is a draw).</p>
+        </section>
+        <section class="help-section">
+          <h3>Draws</h3>
+          <p>A game is drawn by <strong>stalemate</strong> (no legal move but not in check), <strong>insufficient material</strong>, the <strong>50-move</strong> rule, <strong>threefold repetition</strong>, or by <strong>agreement</strong> — tap <strong>½ Draw</strong> to offer one.</p>
+        </section>
+        <section class="help-section">
+          <h3>Turn notifications</h3>
+          <p>Tap the 🔔 in the menu to be notified when it becomes your turn while the game is in the background. With Web Push set up, notifications arrive even if the browser is fully closed. <strong>On iPhone</strong>, first add Chess to your Home Screen (Share → Add to Home Screen) and open it from there.</p>
+        </section>
+        <section class="help-section">
+          <h3>Offline, leaving &amp; resigning</h3>
+          <p>Chess here is happily asynchronous — an opponent going <strong>offline</strong> is fine; play resumes when they return (unless their move clock runs out). <strong>Leave</strong> just exits to your games list. <strong>Resign</strong> gives up the game for good.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/lobby-ui.js"></script>
+  <script type="module" src="../shared/account-ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="../shared/devtools.js"></script>
+</body>
+</html>
