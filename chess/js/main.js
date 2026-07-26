@@ -1,7 +1,6 @@
 import {
-  TIME_CONTROLS, TIME_LABELS, TIME_SHORT, timeKeyFor,
   newGameState, applyMove, replayMoves, legalMovesFrom, findLegalMove, isPromotion,
-  colorOf, sqName,
+  previewMove, colorOf, sqName,
 } from './engine.js';
 import { createBoard } from './board.js';
 import { initTutorial, openTutorial } from './tutorial.js';
@@ -20,13 +19,12 @@ import {
 import { configReady, GAME_SLUG } from './config.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
+import { TIME_CONTROLS, TIME_LABELS, TIME_SHORT, createMoveTimer } from '../../shared/time-control.js';
+import { confirmEnabled, injectConfirmToggle } from '../../shared/move-confirm.js';
 
 const $ = (id) => document.getElementById(id);
 const GLYPH = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-// A couple of seconds' grace before claiming the opponent's flag, to absorb
-// client/server clock skew (we never delay flagging ourselves).
-const FLAG_GRACE_MS = 2500;
 
 // ---- App state ----------------------------------------------------------
 
@@ -42,6 +40,8 @@ const app = {
   selected: null,       // [r,c] currently selected piece, or null
   targets: [],          // [{to:[r,c], capture}] legal destinations for the selection
   promoPending: null,   // {from,to} awaiting a promotion choice
+  staged: null,         // {from,to,promo,board,san} awaiting Confirm (confirm-moves on)
+  confirmMoves: true,   // "confirm moves" preference (burger toggle)
   oppOnline: false,
   connMode: 'db',
   pendingMoves: new Map(),
@@ -433,7 +433,7 @@ async function enterRoom(code, playerIndex, name, room) {
   app.selected = null;
   app.targets = [];
   app.promoPending = null;
-  app.timeoutClaimed = false;
+  app.staged = null;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
   saveSession({ code, playerIndex, name });
 
@@ -680,9 +680,9 @@ function handleIncomingMove(move) {
   }
   if (applied) {
     app.conn.setNextIndex(app.state.moveCount);
-    app.selected = null; app.targets = [];
+    app.selected = null; app.targets = []; app.staged = null;
     app.turnAnchorMs = Date.now();
-    app.timeoutClaimed = false;
+    moveTimer?.resetClaim();
     renderAll();
     announceLastMove();
     maybeNotifyTurn();
@@ -785,17 +785,22 @@ function clearSelection() { app.selected = null; app.targets = []; }
 
 function onBoardSquare(r, c) {
   if (!isMyTurn()) return;
+  // With a move staged, tapping its destination confirms it; anything else
+  // cancels the stage and is handled as a fresh interaction.
+  if (app.staged) {
+    if (app.staged.to[0] === r && app.staged.to[1] === c) { confirmStaged(); return; }
+    cancelStaged();
+  }
   const piece = app.state.board[r][c];
   const mine = piece && piece[0] === myColor();
 
-  // A selection is live and this square is a legal destination → move.
+  // A selection is live and this square is a legal destination → choose the move.
   if (app.selected) {
     const tgt = app.targets.find((t) => t.to[0] === r && t.to[1] === c);
     if (tgt) {
-      if (isPromotion(app.state, app.selected, [r, c])) { openPromo(app.selected, [r, c]); return; }
       const from = app.selected;
       clearSelection();
-      doMove(from, [r, c]);
+      chooseMove(from, [r, c]);
       return;
     }
   }
@@ -814,23 +819,55 @@ function onBoardSquare(r, c) {
 }
 
 // A piece was dragged from `from` and dropped on `to` (which may be illegal).
-// A legal target plays the move; anything else just leaves the piece selected
-// with its dots showing, so the player can still tap a destination.
+// A legal target chooses the move; anything else leaves the piece selected with
+// its dots showing, so the player can still tap a destination.
 function onBoardDrop(from, to) {
   if (!isMyTurn()) return;
+  if (app.staged) cancelStaged();
   const legal = legalMovesFrom(app.state, from[0], from[1]);
   app.selected = from;
   app.targets = legal.map((m) => ({
     to: m.to, capture: !!app.state.board[m.to[0]][m.to[1]] || m.flag === 'ep',
   }));
   if (to && legal.some((m) => m.to[0] === to[0] && m.to[1] === to[1])) {
-    if (isPromotion(app.state, from, to)) { openPromo(from, to); return; }
     clearSelection();
-    doMove(from, to);
+    chooseMove(from, to);
     return;
   }
   renderBoard();
 }
+
+// The single funnel for a chosen (from,to): pick a promotion piece if needed,
+// then either stage it for confirmation or play it instantly.
+function chooseMove(from, to, promo) {
+  if (!promo && isPromotion(app.state, from, to)) { openPromo(from, to); return; }
+  if (app.confirmMoves) stageMove(from, to, promo);
+  else doMove(from, to, promo);
+}
+
+function stageMove(from, to, promo) {
+  const pv = previewMove(app.state, { from, to, promo });
+  if (!pv) { setStatus('That move isn\'t legal.'); return; }
+  app.staged = { from, to, promo, board: pv.board, san: pv.san };
+  clearSelection();
+  renderAll();
+  setStatus(`Play ${pv.san}? Press Confirm, or tap ${sqName(to)} again.`);
+}
+function confirmStaged() {
+  const s = app.staged;
+  if (!s) return;
+  app.staged = null;
+  doMove(s.from, s.to, s.promo);
+}
+function cancelStaged() {
+  if (!app.staged) return;
+  app.staged = null;
+  clearSelection();
+  renderAll();
+  setStatus('');
+}
+$('btn-confirm').addEventListener('click', confirmStaged);
+$('btn-cancel').addEventListener('click', cancelStaged);
 
 function openPromo(from, to) {
   app.promoPending = { from, to };
@@ -845,7 +882,7 @@ document.querySelectorAll('.promo-choice').forEach((btn) => {
     const promo = btn.dataset.promo;
     closePromo();
     clearSelection();
-    doMove(from, to, promo);
+    chooseMove(from, to, promo);
   });
 });
 $('promo-cancel').addEventListener('click', () => { closePromo(); renderBoard(); });
@@ -861,7 +898,8 @@ async function submitMove(type, payload) {
   applyMove(app.state, move);
   app.conn.setNextIndex(app.state.moveCount);
   app.turnAnchorMs = Date.now();
-  app.timeoutClaimed = false;
+  moveTimer?.resetClaim();
+  app.staged = null;
   clearSelection();
   renderAll();
   announceLastMove();
@@ -919,37 +957,31 @@ $('btn-start').addEventListener('click', async () => {
   }
 });
 
-// ---- Per-move clock --------------------------------------------------------
+// ---- Per-move clock (shared/time-control.js) -------------------------------
 
-let clockTimer = null;
-function startClockTicker() {
-  stopClockTicker();
-  clockTimer = setInterval(tickClock, 1000);
-  tickClock();
+let moveTimer = null;
+function ensureTimer() {
+  if (moveTimer) return;
+  moveTimer = createMoveTimer({
+    elMy: $('my-clock'), elOpp: $('opp-clock'),
+    mySeat: () => app.playerIndex,
+    context: () => ({
+      // Before the start move lands, s.tpm is 0 — preview the room's control.
+      tpm: app.state?.started ? (app.state.tpm || 0) : (TIME_CONTROLS[roomTimeKey(app.room)] || 0),
+      live: !!(app.state?.started && !app.state.gameOver && (app.room?.player_count ?? 0) >= 2),
+      turn: app.state?.turn,
+      anchorMs: app.turnAnchorMs,
+    }),
+    onFlag: (seat) => claimTimeout(seat),
+  });
 }
-function stopClockTicker() { if (clockTimer) { clearInterval(clockTimer); clockTimer = null; } }
-
-function moveDeadlineMs() {
-  return app.turnAnchorMs + (app.state.tpm || 0) * 1000;
-}
-
-function tickClock() {
-  if (!app.state) return;
-  renderClocks();
-  const s = app.state;
-  if (!s.started || s.gameOver || !s.tpm || (app.room?.player_count ?? 0) < 2) return;
-  if (app.timeoutClaimed) return;
-  const remaining = moveDeadlineMs() - Date.now();
-  const flagged = s.turn; // the side to move is the one whose clock is running
-  // Flag ourselves the instant we hit zero; give the opponent a little grace.
-  const threshold = flagged === app.playerIndex ? 0 : -FLAG_GRACE_MS;
-  if (remaining <= threshold) claimTimeout(flagged);
-}
+function startClockTicker() { ensureTimer(); moveTimer.resetClaim(); moveTimer.start(); }
+function stopClockTicker() { moveTimer?.stop(); }
 
 async function claimTimeout(flaggedSeat) {
-  if (app.timeoutClaimed || !app.state || app.state.gameOver) return;
-  app.timeoutClaimed = true;
+  if (!app.state || app.state.gameOver) return;
   clearSelection();
+  app.staged = null;
   await submitMove('timeout', { player: flaggedSeat });
   if (flaggedSeat !== app.playerIndex) {
     triggerPush({
@@ -989,15 +1021,23 @@ function renderBoard() {
   const s = app.state;
   goboard.setInteractive(isMyTurn());
   const lm = s.lastMove;
-  const view = {
+  // While a move is staged (confirm-moves on), show the resulting position with
+  // an amber highlight on the move, so you see exactly what you're confirming.
+  if (app.staged) {
+    goboard.render({
+      board: app.staged.board, flipped: boardFlipped(),
+      staged: { from: app.staged.from, to: app.staged.to },
+    });
+    return;
+  }
+  goboard.render({
     board: s.board,
     flipped: boardFlipped(),
     lastMove: (lm && lm.type === 'move') ? { from: lm.from, to: lm.to } : null,
     check: (s.started && !s.gameOver && s.check) ? findKing(s.board, s.toMove) : null,
     selected: app.selected,
     targets: app.targets,
-  };
-  goboard.render(view);
+  });
 }
 
 function sideGlyph(seat) {
@@ -1073,6 +1113,10 @@ function renderControls() {
   drawBtn.disabled = iOffered;
   drawBtn.textContent = iOffered ? '½ Offered' : '½ Draw';
 
+  // Confirm / Cancel appear only while a move is staged.
+  $('btn-confirm').classList.toggle('hidden', !app.staged);
+  $('btn-cancel').classList.toggle('hidden', !app.staged);
+
   // Incoming draw offer banner.
   const oppOffered = canAct && app.state.drawOffer != null && app.state.drawOffer !== app.playerIndex;
   const banner = $('draw-banner');
@@ -1080,32 +1124,8 @@ function renderControls() {
   if (oppOffered) $('draw-banner-text').textContent = `${playerName(1 - app.playerIndex)} offers a draw.`;
 }
 
-function renderClocks() {
-  const s = app.state;
-  if (!s) return;
-  // Before the start move lands, s.tpm is still 0 — fall back to the room's
-  // chosen control so the panels preview the right budget.
-  const tpm = s.started ? (s.tpm || 0) : (TIME_CONTROLS[roomTimeKey(app.room)] || 0);
-  const running = s.started && !s.gameOver && (app.room?.player_count ?? 0) >= 2;
-  const remaining = Math.max(0, (moveDeadlineMs() - Date.now()) / 1000);
-  for (const [elId, seat] of [['my-clock', app.playerIndex], ['opp-clock', 1 - app.playerIndex]]) {
-    const el = $(elId);
-    if (!el) continue;
-    if (!tpm) { el.textContent = '∞'; el.className = 'clock'; continue; }
-    const active = running && s.turn === seat;
-    const secs = active ? remaining : tpm;
-    el.textContent = fmtClock(secs);
-    el.className = 'clock' + (active ? ' active' : '') + (active && secs < 20 ? ' low' : '');
-  }
-}
-
-function fmtClock(sec) {
-  sec = Math.max(0, Math.ceil(sec));
-  if (sec >= 86400) { const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600); return `${d}d ${h}h`; }
-  if (sec >= 3600) { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60); return `${h}h ${m}m`; }
-  const m = Math.floor(sec / 60), sc = sec % 60;
-  return `${m}:${String(sc).padStart(2, '0')}`;
-}
+// The shared move timer owns clock rendering; refresh it on demand.
+function renderClocks() { moveTimer?.refresh(); }
 
 function renderOverlays() {
   const startOv = $('start-overlay');
@@ -1214,6 +1234,13 @@ async function boot() {
   window.LB_CONFIG.onChallengeFriend = challengeFriend;
   renderNotifyBtns();
   initTutorial(exitTutorial);
+
+  // "Confirm moves" preference (default on) + its burger-menu toggle.
+  app.confirmMoves = confirmEnabled(GAME_SLUG, true);
+  injectConfirmToggle(GAME_SLUG, true, (on) => {
+    app.confirmMoves = on;
+    if (!on && app.staged) cancelStaged();
+  });
 
   $('landing-name-input').value = getGuestName();
   $('landing-name-input').addEventListener('input', () => setGuestName($('landing-name-input').value));

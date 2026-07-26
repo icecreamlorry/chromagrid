@@ -156,6 +156,11 @@ export function createBoard(container, {
         if (sq) gHighlight.appendChild(squareRect(sq[0], sq[1], 'cb-last'));
       }
     }
+    if (view.staged) {
+      for (const sq of [view.staged.from, view.staged.to]) {
+        if (sq) gHighlight.appendChild(squareRect(sq[0], sq[1], 'cb-staged'));
+      }
+    }
     const sel = drag ? drag.from : view.selected;
     if (sel) gHighlight.appendChild(squareRect(sel[0], sel[1], 'cb-sel'));
     if (view.check) gHighlight.appendChild(squareRect(view.check[0], view.check[1], 'cb-check'));

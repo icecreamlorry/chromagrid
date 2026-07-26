@@ -16,39 +16,9 @@
 // the board for a given viewer — the rest of the app stays seat-indexed like
 // every other game.
 
-// Per-move time controls offered when creating a room. Value is seconds a player
-// has to make each move; 0 means "unlimited" (no clock — play over days).
-export const TIME_CONTROLS = {
-  unlimited: 0,
-  d3: 259200,
-  d1: 86400,
-  h1: 3600,
-  m10: 600,
-  m1: 60,
-};
-export const TIME_LABELS = {
-  unlimited: 'Unlimited — no timer',
-  d3: '3 days / move',
-  d1: '1 day / move',
-  h1: '1 hour / move',
-  m10: '10 min / move',
-  m1: '1 min / move',
-};
-// Short labels for lobby/score chips.
-export const TIME_SHORT = {
-  unlimited: 'Unlimited',
-  d3: '3 days/move',
-  d1: '1 day/move',
-  h1: '1 hour/move',
-  m10: '10 min/move',
-  m1: '1 min/move',
-};
-
-// Map a raw seconds value back to a control key (for display of a replayed game).
-export function timeKeyFor(tpm) {
-  for (const [k, v] of Object.entries(TIME_CONTROLS)) if (v === (tpm || 0)) return k;
-  return 'unlimited';
-}
+// Per-move time controls live in shared/time-control.js now — they're common to
+// every turn-based table game. The chosen budget still rides this engine's
+// `start` move (payload.tpm) so a replay stays self-describing.
 
 const FILES = 'abcdefgh';
 const KNIGHT = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
@@ -447,6 +417,18 @@ export function findLegalMove(state, from, to, promo) {
   const m = legalMovesFrom(state, from[0], from[1]).find((x) => eq(x.to, to));
   if (!m) return null;
   return m.flag === 'promo' ? { ...m, promo: promo || 'q' } : m;
+}
+
+// The board that WOULD result from playing (from,to[,promo]), without mutating
+// state — used to preview a staged move under "confirm moves". Returns
+// { board, san, captured, flag } or null if the move isn't legal.
+export function previewMove(state, { from, to, promo }) {
+  const pos = posOf(state);
+  const base = genLegal(pos).find((m) => eq(m.from, from) && eq(m.to, to));
+  if (!base) return null;
+  const mv = base.flag === 'promo' ? { ...base, promo: promo || 'q' } : base;
+  const np = makeMove(pos, mv);
+  return { board: np.board, san: toSAN(pos, mv), captured: np.captured, flag: mv.flag };
 }
 
 // ---- Move application ------------------------------------------------------
