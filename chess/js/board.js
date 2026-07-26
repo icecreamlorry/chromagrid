@@ -71,6 +71,16 @@ export function createBoard(container, {
   function logical(sx, sy) { return flipped ? [7 - sy, 7 - sx] : [sy, sx]; }
   const eqp = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
 
+  // How far the dragged piece floats above the finger (board units) — a big lift
+  // on touch so the finger doesn't hide it, a small one for a mouse cursor.
+  const LIFT = (pt) => (pt === 'touch' ? 0.85 : 0.1);
+  // The screen square under the floating piece's CENTRE (not the finger), so the
+  // landing indicator sits where the piece visibly is. null if that's off-board.
+  function landingSquare(ux, uy, pt) {
+    const sx = Math.floor(ux), sy = Math.floor(uy - LIFT(pt));
+    return (sx < 0 || sx > 7 || sy < 0 || sy > 7) ? null : [sx, sy];
+  }
+
   function buildSquares() {
     gSquares.innerHTML = '';
     for (let sy = 0; sy < 8; sy++) {
@@ -116,9 +126,6 @@ export function createBoard(container, {
     const [x, y] = screenXY(r, c);
     return el('rect', { x, y, width: 1, height: 1, class: cls });
   }
-  function screenRect(sx, sy, cls) {
-    return el('rect', { x: sx, y: sy, width: 1, height: 1, class: cls });
-  }
 
   function dotAt(r, c, capture) {
     const [cx, cy] = centre(r, c);
@@ -152,9 +159,6 @@ export function createBoard(container, {
     const sel = drag ? drag.from : view.selected;
     if (sel) gHighlight.appendChild(squareRect(sel[0], sel[1], 'cb-sel'));
     if (view.check) gHighlight.appendChild(squareRect(view.check[0], view.check[1], 'cb-check'));
-    if (drag && drag.hoverScreen) {
-      gHighlight.appendChild(screenRect(drag.hoverScreen[0], drag.hoverScreen[1], 'cb-drag-hover'));
-    }
 
     // Legal-move dots — the dragged piece's during a drag, else the selection's.
     gTargets.innerHTML = '';
@@ -174,11 +178,16 @@ export function createBoard(container, {
 
     renderAnnotations(lastAnn);
 
-    // The lifted piece floats slightly above the finger so it stays visible.
+    // Drop indicator (a translucent circle a touch bigger than a square, so it's
+    // unmistakable) under the floating piece, then the lifted piece on top.
     gDrag.innerHTML = '';
     if (drag) {
-      const lift = drag.pointerType === 'touch' ? 0.85 : 0.1;
-      gDrag.appendChild(glyphAt(drag.sx, drag.sy - lift, drag.piece, 'cb-drag-piece'));
+      if (drag.moved && drag.landing) {
+        gDrag.appendChild(el('circle', {
+          cx: drag.landing[0] + 0.5, cy: drag.landing[1] + 0.5, r: 0.62, class: 'cb-drag-hover',
+        }));
+      }
+      gDrag.appendChild(glyphAt(drag.ux, drag.uy - LIFT(drag.pointerType), drag.piece, 'cb-drag-piece'));
     }
   }
 
@@ -228,28 +237,26 @@ export function createBoard(container, {
     }
   }
 
-  // Continuous screen units [0,8) from a pointer event, or null if off-board.
-  function unitsFromEvent(e) {
+  // Continuous screen units from a pointer event (unclamped), or null if the SVG
+  // isn't laid out yet.
+  function rawUnits(e) {
     const rect = svg.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
-    const ux = ((e.clientX - rect.left) / rect.width) * 8;
-    const uy = ((e.clientY - rect.top) / rect.height) * 8;
-    if (ux < 0 || ux >= 8 || uy < 0 || uy >= 8) return null;
-    return [ux, uy];
+    return [((e.clientX - rect.left) / rect.width) * 8, ((e.clientY - rect.top) / rect.height) * 8];
   }
+  const onBoard = (u) => u && u[0] >= 0 && u[0] < 8 && u[1] >= 0 && u[1] < 8;
 
   svg.addEventListener('pointerdown', (e) => {
     if (!interactive) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const u = unitsFromEvent(e);
-    if (!u) return;
-    const [sx, sy] = [Math.floor(u[0]), Math.floor(u[1])];
-    const [r, c] = logical(sx, sy);
+    const u = rawUnits(e);
+    if (!onBoard(u)) return;
+    const [r, c] = logical(Math.floor(u[0]), Math.floor(u[1]));
     if (!draggable || !draggable(r, c)) return; // let it fall through to a tap
     drag = {
       from: [r, c], piece: lastView.board[r][c],
       targets: (dragTargets ? dragTargets(r, c) : []),
-      sx: u[0], sy: u[1], hoverScreen: [sx, sy],
+      ux: u[0], uy: u[1], landing: landingSquare(u[0], u[1], e.pointerType),
       startX: e.clientX, startY: e.clientY, moved: false,
       pointerType: e.pointerType,
     };
@@ -260,14 +267,10 @@ export function createBoard(container, {
 
   svg.addEventListener('pointermove', (e) => {
     if (!drag) return;
-    const u = unitsFromEvent(e);
+    const u = rawUnits(e);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > DRAG_THRESHOLD) drag.moved = true;
-    if (u) {
-      drag.sx = u[0]; drag.sy = u[1];
-      drag.hoverScreen = [Math.floor(u[0]), Math.floor(u[1])];
-    } else {
-      drag.hoverScreen = null; // finger off the board
-    }
+    if (u) { drag.ux = u[0]; drag.uy = u[1]; drag.landing = landingSquare(u[0], u[1], drag.pointerType); }
+    else drag.landing = null;
     e.preventDefault();
     paint();
   });
@@ -279,13 +282,11 @@ export function createBoard(container, {
     try { svg.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     paint(); // restore the (undragged) board first
     if (cancelled) return;
-    const u = unitsFromEvent(e);
-    if (!d.moved || !u) {
-      // A tap (or released off-board): fall back to tap-select behaviour.
-      onSquare?.(d.from[0], d.from[1]);
-      return;
-    }
-    const [r, c] = logical(Math.floor(u[0]), Math.floor(u[1]));
+    if (!d.moved) { onSquare?.(d.from[0], d.from[1]); return; } // a tap, not a drag
+    const u = rawUnits(e);
+    const sq = u && landingSquare(u[0], u[1], d.pointerType);
+    if (!sq) { onDrop?.(d.from, null); return; } // dropped off-board
+    const [r, c] = logical(sq[0], sq[1]);
     onDrop?.(d.from, [r, c]);
   }
 
@@ -293,8 +294,8 @@ export function createBoard(container, {
     if (drag) { e.preventDefault(); endDrag(e, false); return; }
     if (!interactive) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const u = unitsFromEvent(e);
-    if (!u) return;
+    const u = rawUnits(e);
+    if (!onBoard(u)) return;
     const [r, c] = logical(Math.floor(u[0]), Math.floor(u[1]));
     onSquare?.(r, c);
   });
