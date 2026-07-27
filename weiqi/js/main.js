@@ -18,6 +18,8 @@ import {
 import { configReady, GAME_SLUG } from './config.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
+import { TIME_CONTROLS, TIME_SHORT, createMoveTimer } from '../../shared/time-control.js';
+import { confirmEnabled, injectConfirmToggle } from '../../shared/move-confirm.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,10 +35,13 @@ const app = {
   state: null,
   conn: null,
   pending: null,        // [r,c] staged this turn but not yet confirmed
+  confirmMoves: true,   // "confirm moves" preference (burger toggle); off = instant
   oppOnline: false,
   connMode: 'db',
   pendingMoves: new Map(),
   sizeKey: 'full',      // board size chosen by the host at creation
+  timeKey: 'unlimited', // per-move time control chosen by the host
+  turnAnchorMs: 0,      // ms epoch when the side-to-move's clock started
   finishPersisted: false,
 };
 
@@ -87,24 +92,32 @@ function getName() {
 // picker is for a friend challenge (Training is hidden — you can't train against
 // someone) and the chosen size flows into the challenge room.
 let setupCtx = null;
+let setupTime = 'unlimited';    // per-move control selected in the picker
 function openSetup(name, userId, onError, friend = null) {
   setupCtx = { name, userId, onError, friend };
   $('setup-training').classList.toggle('hidden', !!friend);
   $('setup-subtitle').textContent = friend
-    ? `Pick a board for your challenge to ${friend.display_name || 'your friend'}.`
-    : 'Pick a board. Bigger boards mean longer, deeper games.';
+    ? `Pick a board and per-move time for your challenge to ${friend.display_name || 'your friend'}.`
+    : 'Pick a board and how long each move gets.';
   $('modal-setup').classList.remove('hidden');
 }
 function closeSetup() { $('modal-setup').classList.add('hidden'); setupCtx = null; }
 
+document.querySelectorAll('#setup-times .time-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    setupTime = chip.dataset.time;
+    document.querySelectorAll('#setup-times .time-chip').forEach((c) => c.classList.toggle('selected', c === chip));
+  });
+});
 document.querySelectorAll('#setup-sizes .setup-size').forEach((btn) => {
   btn.addEventListener('click', () => {
     const key = btn.dataset.size;
     const ctx = setupCtx;
+    const timeKey = setupTime;
     closeSetup();
     if (!ctx) return;
-    if (ctx.friend) createChallengeWithSize(ctx.friend, key);
-    else createAndEnter(ctx.name, ctx.userId, key, ctx.onError);
+    if (ctx.friend) createChallengeWithSize(ctx.friend, key, timeKey);
+    else createAndEnter(ctx.name, ctx.userId, key, timeKey, ctx.onError);
   });
 });
 $('setup-training').addEventListener('click', () => {
@@ -115,28 +128,34 @@ $('setup-training').addEventListener('click', () => {
 $('setup-cancel').addEventListener('click', closeSetup);
 $('modal-setup').addEventListener('click', (e) => { if (e.target.id === 'modal-setup') closeSetup(); });
 
-// Stamp the chosen board size onto the host's player record so the guest (and
-// the lobby) can see it before the game starts, and it survives a reopen.
-async function stampSize(room, key) {
+// Stamp the chosen board size + time control onto the host's player record so
+// the guest (and the lobby) can see them before the game starts, and they
+// survive a reopen.
+async function stampSize(room, sizeKey, timeKey) {
+  const patch = (p, i) => (i === 0 ? { ...p, size: sizeKey, time: timeKey } : p);
   try {
-    const players = (room.players || []).map((p, i) => (i === 0 ? { ...p, size: key } : p));
+    const players = (room.players || []).map(patch);
     const { data } = await supabase().from('rooms').update({ players }).eq('code', room.code).select().maybeSingle();
     return data || { ...room, players };
   } catch {
-    return { ...room, players: (room.players || []).map((p, i) => (i === 0 ? { ...p, size: key } : p)) };
+    return { ...room, players: (room.players || []).map(patch) };
   }
 }
 
 function roomSizeKey(room) {
   return room?.players?.[0]?.size || app.sizeKey || 'full';
 }
+function roomTimeKey(room) {
+  return room?.players?.[0]?.time || app.timeKey || 'unlimited';
+}
 
-async function createAndEnter(name, userId, sizeKey, onError) {
+async function createAndEnter(name, userId, sizeKey, timeKey, onError) {
   requestNotifications().then(onNotifyPermissionResolved);
   try {
     app.sizeKey = sizeKey;
+    app.timeKey = timeKey;
     let room = await createRoom(name, userId);
-    room = await stampSize(room, sizeKey);
+    room = await stampSize(room, sizeKey, timeKey);
     await enterRoom(room.code, 0, name, room);
   } catch (e) {
     onError(e.message);
@@ -321,7 +340,8 @@ function buildLobbyCard({ room, myIndex, oppIndex, oppName, state }) {
   const card = document.createElement('button');
   card.className = 'lobby-game';
   const sizeKey = room?.players?.[0]?.size || 'full';
-  const sizeTag = `<span class="lobby-size">${esc(SIZE_LABELS[sizeKey] || 'Weiqi')}</span>`;
+  const timeKey = room?.players?.[0]?.time || 'unlimited';
+  const sizeTag = `<span class="lobby-size">${esc(SIZE_LABELS[sizeKey] || 'Weiqi')}<br>${esc(TIME_SHORT[timeKey] || '')}</span>`;
 
   const challengedMe = room.invited_user_id === app.userId
     && room.player_count < room.max_players
@@ -400,14 +420,15 @@ function challengeFriend(friend) {
   openSetup(app.name, app.userId, lobbyError, friend);
 }
 
-async function createChallengeWithSize(friend, sizeKey) {
+async function createChallengeWithSize(friend, sizeKey, timeKey) {
   try {
     app.sizeKey = sizeKey;
+    app.timeKey = timeKey;
     let room = await createRoom(app.name, app.userId, {
       userId: friend.id,
       name: friend.display_name || 'Friend',
     });
-    room = await stampSize(room, sizeKey);
+    room = await stampSize(room, sizeKey, timeKey);
     triggerPush({
       user_id: friend.id,
       title: 'Weiqi — you have been challenged',
@@ -442,6 +463,9 @@ async function enterRoom(code, playerIndex, name, room) {
   }
   // Size the board even before the game starts, from the host's stamped choice.
   if (!app.state.started) app.state.size = SIZES[roomSizeKey(room)] || app.state.size;
+  app.timeKey = roomTimeKey(room);
+  // Anchor the current move clock to the last move's server time when we can.
+  app.turnAnchorMs = room.last_move_at ? Date.parse(room.last_move_at) : Date.now();
 
   app.conn = new RoomConnection(code, playerIndex, name, {
     onMove: handleIncomingMove,
@@ -462,6 +486,7 @@ async function enterRoom(code, playerIndex, name, room) {
   refreshPushSub();
   renderAll();
   announceLastMove();
+  startClockTicker();
 }
 
 function ensureBoard() {
@@ -580,6 +605,7 @@ $('btn-leave').addEventListener('click', async () => {
       if (room) app.conn?.broadcastRoom(room);
     } catch { /* best effort */ }
   }
+  stopClockTicker();
   if (app.user) {
     if (app.conn) app.conn.close();
     app.conn = null;
@@ -651,6 +677,8 @@ function handleIncomingMove(move) {
   if (applied) {
     app.conn.setNextIndex(app.state.moveCount);
     app.pending = null;
+    app.turnAnchorMs = Date.now();
+    moveTimer?.resetClaim();
     if (app.state.started && goboard) goboard.setSize(app.state.size);
     renderAll();
     announceLastMove();
@@ -666,7 +694,7 @@ const rematch = createRematch({
   seatKey: 'playerIndex',
   createRoom: async (name, userId) => {
     let room = await createRoom(name, userId);
-    room = await stampSize(room, roomSizeKey(app.room));
+    room = await stampSize(room, roomSizeKey(app.room), roomTimeKey(app.room));
     return room;
   },
   joinRoom, enterRoom,
@@ -694,6 +722,11 @@ function handleRoomUpdate(room) {
     return;
   }
   if (!app.state.started) app.state.size = SIZES[roomSizeKey(room)] || app.state.size;
+  app.timeKey = roomTimeKey(room);
+  if (room.last_move_at) {
+    const t = Date.parse(room.last_move_at);
+    if (!Number.isNaN(t)) app.turnAnchorMs = t;
+  }
   if (!hadSecondPlayer && room.player_count >= 2) renderAll();
   else { if (app.state) renderOppPanel(); renderOverlays(); }
 }
@@ -712,6 +745,8 @@ function announceLastMove() {
     setStatus(`Game on! ${playerName(lm.first)} plays Black and goes first.`);
   } else if (lm.type === 'forfeit') {
     setStatus(`${who} resigned — game over.`);
+  } else if (lm.type === 'timeout') {
+    setStatus(`${playerName(lm.player)} ran out of time — game over.`);
   }
 }
 
@@ -741,6 +776,8 @@ async function submitMove(type, payload) {
   applyMove(app.state, move);
   app.conn.setNextIndex(app.state.moveCount);
   app.pending = null;
+  app.turnAnchorMs = Date.now();
+  moveTimer?.resetClaim();
   if (app.state.started && goboard) goboard.setSize(app.state.size);
   renderAll();
   announceLastMove();
@@ -791,7 +828,7 @@ $('btn-start').addEventListener('click', async () => {
   $('btn-start').disabled = true;
   try {
     const key = roomSizeKey(app.room);
-    await submitMove('start', { size: SIZES[key], komi: KOMI });
+    await submitMove('start', { size: SIZES[key], komi: KOMI, tpm: TIME_CONTROLS[roomTimeKey(app.room)] || 0 });
     await updateRoomStatus(app.code, 'playing');
     app.room.status = 'playing';
     app.conn.broadcastRoom(app.room);
@@ -801,13 +838,19 @@ $('btn-start').addEventListener('click', async () => {
   }
 });
 
-// Tap an intersection: stage it (first tap) or confirm it (tap the staged
-// point again). Play button also confirms.
+// Tap an intersection. With "confirm moves" on (default): stage it (first tap)
+// or confirm it (tap the staged point again; the Play button also confirms).
+// With it off: play immediately on the first tap.
 function onBoardPoint(r, c) {
   if (!isMyTurn()) return;
   if (app.state.board[r][c] !== null) return;
   const res = tryPlay(app.state.board, app.state.size, r, c, app.playerIndex, app.state.koPoint);
   if (!res.ok) { setStatus(res.error); return; }
+  if (!app.confirmMoves) {
+    app.pending = null;
+    submitMove('place', { r, c });
+    return;
+  }
   if (app.pending && app.pending[0] === r && app.pending[1] === c) {
     confirmPending();
     return;
@@ -856,6 +899,7 @@ function renderAll() {
   renderMyPanel();
   renderControls();
   renderOverlays();
+  renderClocks();
 }
 
 function renderMyOnline() {
@@ -891,10 +935,11 @@ function renderOppPanel() {
   const oppIdx = 1 - app.playerIndex;
   const hasOpp = !!seatName(app.room, oppIdx);
   const nameEl = $('opp-name');
+  const nm = hasOpp ? `${stoneGlyph(oppIdx)}<span class="nm">${esc(playerName(oppIdx))}</span>` : '<span class="nm">Waiting for opponent…</span>';
   if (hasOpp && seatLeft(app.room, oppIdx) && !app.state.gameOver) {
-    nameEl.innerHTML = `${stoneGlyph(oppIdx)}${esc(playerName(oppIdx))} <span class="left-tag">offline</span>`;
+    nameEl.innerHTML = `${nm} <span class="left-tag">offline</span>`;
   } else {
-    nameEl.innerHTML = hasOpp ? `${stoneGlyph(oppIdx)}${esc(playerName(oppIdx))}` : 'Waiting for opponent…';
+    nameEl.innerHTML = nm;
   }
   $('opp-captures').textContent = app.state.started ? `${app.state.captures[oppIdx]} captured` : '';
   $('opp-turn').classList.toggle('hidden', !(app.state.started && !app.state.gameOver && app.state.turn === oppIdx));
@@ -905,9 +950,8 @@ function renderOppPanel() {
 
 function renderMyPanel() {
   const nameEl = $('my-name');
-  nameEl.innerHTML = app.state.started
-    ? `${stoneGlyph(app.playerIndex)}${esc(app.name)} (you)`
-    : `${esc(app.name)} (you)`;
+  const glyph = app.state.started ? stoneGlyph(app.playerIndex) : '';
+  nameEl.innerHTML = `${glyph}<span class="nm">${esc(app.name)} (you)</span>`;
   $('my-captures').textContent = app.state.started ? `${app.state.captures[app.playerIndex]} captured` : '';
   $('my-turn').classList.toggle('hidden', !isMyTurn());
   renderMyOnline();
@@ -917,8 +961,47 @@ function renderControls() {
   const my = isMyTurn();
   $('btn-pass').disabled = !my;
   $('btn-pass').classList.toggle('btn-pass-warn', my && app.state.consecutivePasses >= 1);
+  // Play (confirm) only matters when confirm-moves is on.
+  $('btn-play').classList.toggle('hidden', !app.confirmMoves);
   $('btn-play').disabled = !(my && app.pending);
   $('btn-resign').classList.toggle('hidden', !((app.room?.player_count ?? 0) >= 2 && !app.state.gameOver));
+}
+
+// ---- Per-move clock (shared/time-control.js) -------------------------------
+
+let moveTimer = null;
+function ensureTimer() {
+  if (moveTimer) return;
+  moveTimer = createMoveTimer({
+    elMy: $('my-clock'), elOpp: $('opp-clock'),
+    mySeat: () => app.playerIndex,
+    context: () => ({
+      tpm: app.state?.started ? (app.state.tpm || 0) : (TIME_CONTROLS[roomTimeKey(app.room)] || 0),
+      live: !!(app.state?.started && !app.state.gameOver && (app.room?.player_count ?? 0) >= 2),
+      turn: app.state?.turn,
+      anchorMs: app.turnAnchorMs,
+    }),
+    onFlag: (seat) => claimTimeout(seat),
+  });
+}
+function startClockTicker() { ensureTimer(); moveTimer.resetClaim(); moveTimer.start(); }
+function stopClockTicker() { moveTimer?.stop(); }
+function renderClocks() { moveTimer?.refresh(); }
+
+async function claimTimeout(flaggedSeat) {
+  if (!app.state || app.state.gameOver) return;
+  app.pending = null;
+  await submitMove('timeout', { player: flaggedSeat });
+  if (flaggedSeat !== app.playerIndex) {
+    triggerPush({
+      room_code: app.code, player: 1 - app.playerIndex,
+      title: 'Weiqi — game over', body: `You ran out of time — ${app.name} wins.`,
+      url: location.href.split('#')[0],
+    }).catch(() => {});
+  }
+  if (app.userId && app.state.gameOver && app.state.winner !== app.playerIndex) {
+    dismissGame(app.userId, app.code);
+  }
 }
 
 function renderOverlays() {
@@ -938,7 +1021,7 @@ function renderOverlays() {
   startOv.classList.remove('hidden');
   const haveGuest = !!seatName(app.room, 1);
   const sizeKey = roomSizeKey(app.room);
-  $('start-size').textContent = SIZE_LABELS[sizeKey] || '';
+  $('start-size').textContent = `${SIZE_LABELS[sizeKey] || ''} · ${TIME_SHORT[roomTimeKey(app.room)] || 'Unlimited'}`;
   $('start-share').classList.toggle('hidden', haveGuest);
   $('start-code').textContent = app.code;
   if (haveGuest) {
@@ -968,6 +1051,8 @@ function renderGameOver() {
   let html = '';
   if (s.endDetail?.reason === 'forfeit') {
     html = `<p>${esc(playerName(s.endDetail.resignedPlayer))} resigned.</p>`;
+  } else if (s.endDetail?.reason === 'timeout') {
+    html = `<p>${esc(playerName(s.endDetail.flaggedPlayer))} ran out of time.</p>`;
   } else if (s.score) {
     const sc = s.score;
     const bl = sc.blackSeat, wh = sc.whiteSeat;
@@ -1033,6 +1118,14 @@ async function boot() {
   window.LB_CONFIG.onChallengeFriend = challengeFriend;
   renderNotifyBtns();
   initTutorial(exitTutorial);
+
+  // "Confirm moves" preference (default on — Weiqi has always confirmed) + toggle.
+  app.confirmMoves = confirmEnabled(GAME_SLUG, true);
+  injectConfirmToggle(GAME_SLUG, true, (on) => {
+    app.confirmMoves = on;
+    if (!on && app.pending) { app.pending = null; renderBoard(); renderControls(); setStatus(''); }
+    else renderControls();
+  });
 
   $('landing-name-input').value = getGuestName();
   $('landing-name-input').addEventListener('input', () => setGuestName($('landing-name-input').value));

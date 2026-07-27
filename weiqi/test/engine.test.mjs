@@ -200,5 +200,16 @@ function boardFrom(rows) {
   ok(hasLegalMove(b, 5, 1), 'legal moves exist on a nearly-empty board');
 }
 
+// ---- Time control: tpm on start + timeout move ----------------------------
+{
+  const s = newGameState(555);
+  applyMove(s, { move_index: 0, player: 0, type: 'start', payload: { size: 9, komi: 6.5, tpm: 60 } });
+  ok(s.tpm === 60, 'tpm carried from start move');
+  applyMove(s, { move_index: 1, player: 1, type: 'timeout', payload: { player: 1 } });
+  ok(s.gameOver, 'timeout ends game');
+  ok(s.winner === 0, 'timeout: flagged seat loses');
+  ok(s.endDetail.reason === 'timeout' && s.endDetail.flaggedPlayer === 1, 'timeout reason recorded');
+}
+
 console.log(`\nweiqi engine: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

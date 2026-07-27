@@ -150,6 +150,7 @@ export function newGameState(seed, size = SIZES.full, komi = KOMI) {
     seed,
     size,
     komi,
+    tpm: 0,              // seconds per move (0 = unlimited); set by the start move
     board: emptyBoard(size),
     // Which seat plays Black (and therefore moves first). Derived from the seed
     // so both clients agree without extra state.
@@ -255,6 +256,7 @@ export function applyMove(state, move) {
       // the board to it now so a replay from the log is self-describing.
       if (payload.size) state.size = payload.size;
       if (payload.komi != null) state.komi = payload.komi;
+      if (payload.tpm != null) state.tpm = payload.tpm;
       state.board = emptyBoard(state.size);
       state.turn = state.blackSeat;
       state.started = true;
@@ -286,6 +288,16 @@ export function applyMove(state, move) {
       state.winner = 1 - seat;
       state.endDetail = { reason: 'forfeit', resignedPlayer: seat };
       state.lastMove = { type: 'forfeit', player: seat };
+      break;
+    }
+    case 'timeout': {
+      // Per-move clock ran out for `payload.player`; the other seat wins. Either
+      // client may submit the claim (the DB's move-index lock keeps it single).
+      const flagged = payload.player ?? seat;
+      state.gameOver = true;
+      state.winner = 1 - flagged;
+      state.endDetail = { reason: 'timeout', flaggedPlayer: flagged };
+      state.lastMove = { type: 'timeout', player: flagged };
       break;
     }
     default:

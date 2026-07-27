@@ -21,9 +21,14 @@ Create a game and pick a **per-move time control**:
 
 Share the room code (or challenge a friend from your account). The seed decides
 who plays White (and therefore moves first). On your turn, **tap one of your
-pieces** to see its legal moves, then tap a highlighted square to move there. A
-pawn reaching the last rank opens a **promotion** picker. Castling and en passant
-light up automatically when they're legal.
+pieces** to see its legal moves, then tap a highlighted square — or **drag** the
+piece — to move there. A pawn reaching the last rank opens a **promotion** picker.
+Castling and en passant light up automatically when they're legal.
+
+By default moves are **staged for confirmation** (a preview with Confirm / Cancel,
+or re-tap the destination); the **Confirm moves** toggle in the burger menu turns
+this off for instant play. Both the timer and this toggle come from the shared
+turn-based-table-game kit (`shared/time-control.js`, `shared/move-confirm.js`).
 
 Like Wurdz and Weiqi, Chess is happily asynchronous: an opponent going
 **offline** is fine, and turn notifications (in-app, plus Web Push when

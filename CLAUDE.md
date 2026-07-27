@@ -90,6 +90,35 @@ lets its fixed width push past the edge → both bugs at once.
   the game screens won't boot; test game-independent pieces (engines, tutorials)
   in isolation instead.
 
+### Turn-based table-game kit (Chess, Weiqi → Checkers, Backgammon, …)
+
+The two-player board games share more than the rooms layer. Reuse these instead
+of re-implementing per game — a new classic should mostly be a rules engine + a
+board renderer over this kit:
+
+- `shared/time-control.js` — **per-move** time controls (`TIME_CONTROLS`,
+  `TIME_LABELS/SHORT/SUBLABELS`, `TIME_ORDER`, `timeKeyFor`, `fmtClock`). The
+  budget resets each turn (blitz *and* multi-day correspondence from one UI). The
+  chosen seconds ride the `start` move (`payload.tpm`); the host's control key is
+  stamped on `room.players[0].time` for the lobby.
+  - `createMoveTimer({ elMy, elOpp, mySeat, context, onFlag })` runs the tick
+    loop, renders both `.clock` spans, and calls `onFlag(seat)` once when a clock
+    hits zero. `context()` returns `{ tpm, live, turn, anchorMs }`; anchor the
+    clock to `room.last_move_at` on load and `Date.now()` on each applied move,
+    and call `resetClaim()` when a move is applied. The engine needs a `timeout`
+    move type (`{ player: flaggedSeat }` → other seat wins; either client may
+    submit it — the DB move-index lock keeps it single).
+- `shared/move-confirm.js` — the "confirm moves" preference (stage a preview,
+  then Confirm / re-tap to play) with a burger-menu toggle. `confirmEnabled(slug,
+  default)` + `injectConfirmToggle(slug, default, onChange)`. Weiqi defaults on
+  (it always staged); Chess too.
+- `shared/menu-toggle.js` — `addMenuToggle(...)` injects an on/off item into
+  `#app-menu` (used by move-confirm; use it for any future per-game toggle).
+
+Player panels are a two-row `.player-panel` (`.pp-row.pp-id` name on top,
+`.pp-row.pp-meta` captures/clock/turn below) so a long name isn't cut off and
+the turn pill never wraps — copy Chess/Weiqi's markup + the `.clock` styles.
+
 ## Per-game conventions
 
 - Move log is the source of truth; engines are pure and deterministic and fold

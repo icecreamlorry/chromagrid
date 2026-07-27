@@ -7,7 +7,9 @@ very first stone.
 
 ## Playing
 
-Create a game and pick a board:
+Create a game and pick a board **and a per-move time control** (Unlimited, or
+from 1 minute up to 3 days per move — the shared `shared/time-control.js` kit,
+same as Chess):
 
 | Option | Board | Notes |
 | --- | --- | --- |
@@ -15,6 +17,9 @@ Create a game and pick a board:
 | **Intermediate** | 13 × 13 | A real fight without the marathon. |
 | **Full** | 19 × 19 | The classic board. |
 | **Training** | — | 15 guided lessons; solo, no opponent needed. |
+
+The **Confirm moves** toggle in the burger menu (on by default) chooses between
+staging a stone then confirming, and playing instantly on the first tap.
 
 Share the room code (or challenge a friend from your account). Black plays
 first; the seed decides who is Black. On your turn, **tap an intersection to

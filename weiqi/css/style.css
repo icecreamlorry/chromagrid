@@ -144,15 +144,27 @@ input, textarea { user-select: text; }
   display: flex; flex-direction: column; gap: 10px;
   flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch;
 }
+/* Two rows: name on top (one line), then captures/clock/turn below — keeps a
+   long name from being cut off and the "your turn" pill from wrapping. */
 .player-panel {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; gap: 6px;
   background: var(--panel); border-radius: var(--item-radius); padding: 10px 16px;
 }
-.player-name { font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 8px; }
-.capture-count { color: var(--muted); font-size: 13px; margin-left: auto; }
+.pp-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-meta { justify-content: flex-end; gap: 8px; }
+.player-name { font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.player-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capture-count { color: var(--muted); font-size: 13px; }
+.clock {
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px;
+  background: var(--panel-light); border-radius: 8px; padding: 4px 10px;
+  color: var(--muted); min-width: 62px; text-align: center;
+}
+.clock.active { color: var(--text); }
+.clock.low.active { background: #c0392b; color: #fff; }
 .turn-marker {
   background: var(--good); color: #11321e; font-size: 12px; font-weight: 700;
-  border-radius: 999px; padding: 3px 10px;
+  border-radius: 999px; padding: 3px 10px; white-space: nowrap;
 }
 .online-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .online-dot.online { background: var(--good); }
@@ -252,6 +264,15 @@ input, textarea { user-select: text; }
 
 /* ---- New-game setup modal ---- */
 
+.setup-section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); margin: 12px 0 6px; }
+.time-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.time-chip {
+  border: 2px solid var(--panel-light); background: var(--panel-light); color: var(--text);
+  border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: filter 0.15s, border-color 0.15s;
+}
+.time-chip:hover { filter: brightness(1.12); }
+.time-chip.selected { border-color: var(--cyan); color: var(--cyan); }
 .setup-sizes { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 10px; }
 .setup-size {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
