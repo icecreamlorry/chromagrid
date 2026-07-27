@@ -50,6 +50,28 @@ html { overflow-x: clip; }
   --item-radius:    3px;
   --panel-light:    color-mix(in srgb, var(--cyan) 12%, var(--panel));
 
+  /* ── semantic text, status colours + content font ──────────────────────
+     Used by the game screens (distinct from --font-ui, which styles headings/
+     buttons). Themes with a LIGHT palette must override --text/--muted (see
+     Pastel) so game text never goes light-on-light. --font-body is the readable
+     content typeface; swap it per theme to restyle every game at once. */
+  --text:   #eef3f8;
+  --muted:  #9fb2c4;
+  --good:   #4cd17e;
+  --bad:    #e07060;
+  --cyan-dark: color-mix(in srgb, var(--cyan) 80%, #000);
+  --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Physical board surfaces shared by the table games (chess/draughts/backgammon
+     squares, weiqi goban). Theme-independent by default; a theme may override. */
+  --sq-light: #ecd7ac;
+  --sq-dark:  #a67a4e;
+  --sq-edge:  #6f4e2c;
+  --cb-coord: #6b4f34;
+  --goban-wood: #dcb471;
+  --goban-wood-edge: #b98f4e;
+  --goban-line: #4a3411;
+
   /* ── glow tokens ───────────────────────────────────────────────────────
      Every game hand-wrote its own `text-shadow: 0 0 Npx var(--color)` glow
      per heading/label/value, which meant Ocean/Pastel had to fight each one
@@ -694,6 +716,13 @@ button:disabled:hover {
   --yellow:  #d4a042;   /* warm ochre — highlights     */
   --dark:    #f0ede8;   /* cream background             */
   --panel:   #fdf9f5;   /* near-white panel             */
+
+  /* Light palette → dark game text (otherwise the games' light --text would be
+     white-on-cream). Keeps every game legible under Pastel. */
+  --text:   #43403a;
+  --muted:  #8c8578;
+  --good:   #3f9e6a;
+  --bad:    #c0563f;
   /* Board-tints (rgba(var(--neon), α)) take a soft denim-blue instead of the neon
      cyan, so the games' lines/fills/letters read on cream while staying pastel —
      not the glowing aqua of the dark themes, nor a hard steel. The lighter --cyan

@@ -126,6 +126,22 @@ Player panels are a two-row `.player-panel` (`.pp-row.pp-id` name on top,
 `.pp-row.pp-meta` captures/clock/turn below) so a long name isn't cut off and
 the turn pill never wraps — copy Chess/Weiqi's markup + the `.clock` styles.
 
+- `shared/table-game.css` — **the whole game-shell layout** (landing, header +
+  hamburger clearance, panels, clocks, overlays, modals, setup, lobby, controls,
+  tutorial screen). All four table games `<link>` it after `shared.css`; each
+  game's own `css/style.css` is then ONLY its board + piece rendering. Change a
+  panel once here, not in 20 files. **Never re-add the layout per game, and never
+  hardcode `font-family`/`--text`/`--panel` in a game — it all comes from here +
+  the theme vars.**
+
+**Colours + fonts are theme vars, always.** `shared.css` defines, per theme,
+`--text` / `--muted` / `--good` / `--bad` / `--cyan-dark` and the content font
+`--font-body`, plus the board-surface vars (`--sq-light/dark/edge`, `--cb-coord`,
+`--goban-wood/edge/line`). A game must never define its own `:root { --text… }`
+or `font-family: "Segoe UI"` — that's exactly what caused light-on-light under
+the Pastel (light) theme and font drift between games. Light themes override
+`--text`/`--muted` to dark ink; use `var(--font-body)` for all game text.
+
 ## Per-game conventions
 
 - Move log is the source of truth; engines are pure and deterministic and fold
