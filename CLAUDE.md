@@ -1,7 +1,7 @@
 # LB Games — working notes for Claude
 
 A family of vanilla-JS web games (Chromagrid, Wurdz, Scramblr, Splitz, Lexicorp,
-Atlaz, Flagz, Atomyx, Buffz, Weiqi, Chess) sharing one Supabase rooms/accounts/push
+Atlaz, Flagz, Atomyx, Buffz, Weiqi, Chess, Draughts, Backgammon) sharing one Supabase rooms/accounts/push
 layer under `shared/`. No build step — static HTML + ES modules, served straight
 from GitHub Pages (`icecreamlorry.github.io/lb-games`). Each game lives in its
 own folder with `index.html`, `js/`, `css/style.css`, `sw.js`, `manifest`.
@@ -90,11 +90,18 @@ lets its fixed width push past the edge → both bugs at once.
   the game screens won't boot; test game-independent pieces (engines, tutorials)
   in isolation instead.
 
-### Turn-based table-game kit (Chess, Weiqi → Checkers, Backgammon, …)
+### Turn-based table-game kit (Chess, Weiqi, Draughts, Backgammon, …)
 
 The two-player board games share more than the rooms layer. Reuse these instead
 of re-implementing per game — a new classic should mostly be a rules engine + a
 board renderer over this kit:
+
+- `shared/dice.js` — **deterministic seeded dice** for dice games (Backgammon).
+  Rolls come from the room `seed` + a turn index (`rollDice`, `dicePips`,
+  `openingRoll`), so both clients agree and no roll is ever stored in the log —
+  the same purity trick the engines use for colours. Also exports `pipPositions`
+  for drawing a die face. **Any future randomness in a folded-log engine must be
+  seed-derived like this, never `Math.random()`.**
 
 - `shared/time-control.js` — **per-move** time controls (`TIME_CONTROLS`,
   `TIME_LABELS/SHORT/SUBLABELS`, `TIME_ORDER`, `timeKeyFor`, `fmtClock`). The
