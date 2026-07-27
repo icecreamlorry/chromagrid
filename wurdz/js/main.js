@@ -429,6 +429,7 @@ async function enterRoom(code, playerIndex, name, room) {
     applyStoredResult(app.state, room.result);
   }
 
+  if (app.conn) { try { app.conn.close(); } catch { /* stale room */ } }
   app.conn = new RoomConnection(code, playerIndex, name, {
     onMove: handleIncomingMove,
     onPresence: handlePresence,

@@ -449,6 +449,7 @@ async function enterRoom(code, playerIndex, name, room) {
   // a reload mid-turn shows the right remaining time.
   app.turnAnchorMs = room.last_move_at ? Date.parse(room.last_move_at) : Date.now();
 
+  if (app.conn) { try { app.conn.close(); } catch { /* stale room */ } }
   app.conn = new RoomConnection(code, playerIndex, name, {
     onMove: handleIncomingMove,
     onPresence: handlePresence,

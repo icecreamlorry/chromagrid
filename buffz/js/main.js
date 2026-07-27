@@ -263,6 +263,7 @@ async function enterRoom(code, seat, name, room) {
   setPhase('config');
   renderAll();
 
+  if (app.conn) { try { app.conn.close(); } catch { /* stale room */ } }
   app.conn = new RoomConnection(code, seat, name, {
     onMove: handleMove,
     onPresence: handlePresence,

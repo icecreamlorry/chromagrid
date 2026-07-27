@@ -199,6 +199,7 @@ async function enterRoom(code, playerIndex, name, room) {
   app.timeKey = roomTimeKey(room);
   app.turnAnchorMs = room.last_move_at ? Date.parse(room.last_move_at) : Date.now();
 
+  if (app.conn) { try { app.conn.close(); } catch { /* stale room */ } }
   app.conn = new RoomConnection(code, playerIndex, name, { onMove: handleIncomingMove, onPresence: handlePresence, onMode: (mode) => { app.connMode = mode; renderMyOnline(); }, onRoomUpdate: handleRoomUpdate });
   app.conn.setNextIndex(app.state.moveCount); app.conn.connect(); app.connMode = 'db';
 
