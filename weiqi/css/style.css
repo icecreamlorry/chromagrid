@@ -151,10 +151,12 @@ input, textarea { user-select: text; }
   background: var(--panel); border-radius: var(--item-radius); padding: 10px 16px;
 }
 .pp-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.pp-meta { justify-content: flex-end; gap: 8px; }
+/* Turn marker sits on the left, indented to line up under the name (past the
+   10px dot + 10px row gap); captures + clock are pushed to the right. */
+.pp-meta { gap: 8px; padding-left: 20px; min-height: 24px; }
 .player-name { font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
 .player-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capture-count { color: var(--muted); font-size: 13px; }
+.capture-count { color: var(--muted); font-size: 13px; margin-left: auto; }
 .clock {
   font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px;
   background: var(--panel-light); border-radius: 8px; padding: 4px 10px;
