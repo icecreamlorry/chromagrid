@@ -365,20 +365,21 @@ export function createQuizGame(cfg) {
       : picking ? cfg.pickTitle
       : (n > 1 ? 'READY?' : 'WAITING FOR PLAYERS');
 
-    cfg.markSelected(app.cfgSel);
+    cfg.markSelected(app.cfgSel, { host, data: app.data });
+    const note = cfg.readyNote ? cfg.readyNote(app.data, app.cfgSel) : '';
 
     if (!host) {
       $('start-info').innerHTML = `${n} player${n === 1 ? '' : 's'} in · code <strong>${esc(app.code)}</strong>`;
     } else if (picking) {
       const eff = diffEffect();
-      $('start-info').innerHTML = cfgSummary()
+      $('start-info').innerHTML = (cfgSummary()
         ? `${cfgSummary()}${eff ? `<br><span class="start-note">${esc(eff)}</span>` : ''}`
-        : cfg.pickPrompt;
+        : cfg.pickPrompt) + note;
     } else {
       $('start-info').innerHTML = `${cfgSummary()}${diffEffect() ? `<br><span class="start-note">${esc(diffEffect())}</span>` : ''}`
         + `<br>${n} player${n === 1 ? '' : 's'} in · share code <strong>${esc(app.code)}</strong>`
         + `<br><span class="start-note">${n > 1 ? 'Everyone in the room plays.' : 'Friends can join until you start — or race solo.'}</span>`
-        + (cfg.readyNote ? cfg.readyNote(app.data, app.cfgSel) : '');
+        + note;
     }
     $('btn-start').classList.toggle('hidden', !host);
     $('btn-start').disabled = !picked;
@@ -532,7 +533,7 @@ export function createQuizGame(cfg) {
     $('results-title').textContent = soloRoom() ? 'YOUR RUN' : complete ? 'RESULTS' : 'FINISHED!';
     const ol = $('results-list');
     ol.innerHTML = '';
-    const ranked = rankSeats(app.results, n);
+    const ranked = rankSeats(app.results, n, app.modeId);
     ranked.forEach((seat, i) => {
       const r = app.results[seat];
       const li = document.createElement('li');
@@ -550,7 +551,7 @@ export function createQuizGame(cfg) {
     if (n <= 1 || !complete) {
       winnerEl.textContent = ''; winnerEl.className = 'results-winner';
     } else {
-      const w = winnerSeat(app.results, n);
+      const w = winnerSeat(app.results, n, app.modeId);
       if (w === 'tie') { winnerEl.textContent = "It's a tie!"; winnerEl.className = 'results-winner'; }
       else if (w === app.seat) { winnerEl.textContent = 'You won! 🎉'; winnerEl.className = 'results-winner'; }
       else { winnerEl.textContent = `${seatName(app.room, w) || `P${w + 1}`} won`; winnerEl.className = 'results-winner loss'; }
@@ -566,7 +567,7 @@ export function createQuizGame(cfg) {
     app.persistedCount = submitted;
     app.resultPersisted = true;
     const scores = Array.from({ length: n }, (_, s) => scoreOf(app.results[s]));
-    const result = { scores, winner: winnerSeat(app.results, n), reason: 'done', ...cfg.resultMeta(app.payload) };
+    const result = { scores, winner: winnerSeat(app.results, n, app.modeId), reason: 'done', ...cfg.resultMeta(app.payload) };
     try {
       await finishRoom(app.code, result, false);
       if (app.room) { app.room.status = 'finished'; app.room.result = result; }
