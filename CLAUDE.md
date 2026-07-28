@@ -142,6 +142,32 @@ or `font-family: "Segoe UI"` — that's exactly what caused light-on-light under
 the Pastel (light) theme and font drift between games. Light themes override
 `--text`/`--muted` to dark ink; use `var(--font-body)` for all game text.
 
+### Quiz-game kit (Atlaz, Flagz, Atomyx, Buffz, …)
+
+The four seeded-quiz games share a layer too — reuse it for any new "guess from a
+dataset against the clock, solo or in a room" game:
+
+- `shared/quiz-engine.js` — the **pure, deterministic primitives**: `mulberry32`
+  / `shuffleWith` / `seededShuffle` (one seeded RNG so every seat derives the
+  same rounds from the room seed — never `Math.random()`), `expectedOrder` /
+  `gradeOrder` for the "sort these" modes (pass your own `orderKey`), a
+  `makeAnswerMatcher({ amp, saint, dropThe, packed })` factory for the type-the-
+  name modes, and the `scoreOf` / `compareResults` / `rankSeats` / `winnerSeat`
+  ranking (score desc, time asc; an equal *score* is a draw). Each game keeps
+  only its own `buildRounds` + `MODES`/`DIFFS` tables and re-exports the shared
+  bits so `test/engine.test.mjs` still imports everything from `js/engine.js`.
+  Atlaz keeps its own sweep-aware ranking (the outlier).
+
+- `shared/quiz-game.css` — **the whole quiz game-shell layout** (landing/lobby
+  cards, buttons, chips, players strip, prompt bar, mode-config picker,
+  countdown, results table, overlays, status). Linked after `shared.css` and
+  before the game's own `css/style.css`, which is then ONLY the board/stage
+  rendering (map, flag grid, periodic table, trivia card + the order/review rows
+  that carry each game's artwork). The display font is one var, `--font-display`
+  (defined here with the Fredoka `@import`) — never hardcode `'Fredoka'` in a
+  game. Correct/incorrect `--ok-*`/`--bad-*` are fixed semantic colours (solid
+  fill vs dashed border + ✓/✗ glyph, legible without hue), not theme vars.
+
 ## Per-game conventions
 
 - Move log is the source of truth; engines are pure and deterministic and fold
