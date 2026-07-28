@@ -203,6 +203,16 @@ dataset against the clock, solo or in a room" game:
 
 ## Git
 
-Work on the designated feature branch, then fast-forward `main`
-(`git fetch origin main && git checkout main && git merge --ff-only <branch> &&
-git push origin main`). GitHub Pages serves `main`, so a push deploys it.
+Work on the designated feature branch, then **always finish by fast-forwarding
+`main`** (`git fetch origin main && git checkout main && git merge --ff-only
+<branch> && git push origin main`, then `git checkout <branch>`). GitHub Pages
+serves `main`, so a push deploys it — **the owner tests on the live site, not on
+branches, so a task is not done until it's on `main`.** Never stop at pushing the
+branch.
+
+## Talking to the owner
+
+- The owner already knows the sandbox can't run the full room/multiplayer flow
+  (the Supabase client loads from a CDN that's blocked here). **Don't keep
+  repeating that caveat** — just ship to `main` and, if something genuinely
+  couldn't be checked, say so once, briefly.
