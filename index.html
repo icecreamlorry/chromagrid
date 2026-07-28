@@ -94,14 +94,70 @@
       min-height: 0.7em;
     }
 
+    /* ── home dashboards (your games + daily) ───────────────────────────── */
+
+    .home-section { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 14px; }
+    .home-section.hidden { display: none; }
+    .section-title {
+      font-family: var(--font-ui);
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--magenta);
+      text-shadow: var(--glow-magenta-sm);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: rgba(var(--neon),0.15); }
+
+    .dash-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+    .dash-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: var(--panel);
+      border: 1px solid rgba(var(--neon),0.18);
+      border-radius: var(--panel-radius);
+      box-shadow: var(--panel-aura);
+      text-decoration: none; color: inherit;
+      cursor: pointer; text-align: left;
+      transition: border-color 0.2s;
+      font-family: var(--font-mono);
+    }
+    .dash-card:hover { border-color: color-mix(in srgb, var(--cyan) 50%, transparent); }
+    .dash-card.is-mine { border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+    .dash-badge {
+      flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-ui); font-weight: 800; font-size: 0.9rem;
+      background: color-mix(in srgb, var(--cyan) 12%, transparent);
+      color: var(--cyan); letter-spacing: 0.02em;
+    }
+    .dash-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+    .dash-game { font-family: var(--font-ui); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--cyan); }
+    .dash-line { font-size: 0.68rem; color: rgba(var(--neon),0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-tag {
+      flex: 0 0 auto; font-family: var(--font-ui); font-size: 0.56rem; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px;
+    }
+    .dash-tag.turn  { color: var(--dark); background: var(--cyan); }
+    .dash-tag.invite{ color: var(--dark); background: var(--magenta); }
+    .dash-tag.todo  { color: var(--dark); background: var(--yellow, #f2c14e); }
+    .dash-tag.done  { color: rgba(var(--neon),0.55); border: 1px solid rgba(var(--neon),0.3); }
+    .dash-empty { font-size: 0.68rem; color: rgba(var(--neon),0.4); font-family: var(--font-mono); }
+
     /* ── game grid ──────────────────────────────────────────────────────── */
+
+    .game-groups { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 40px; }
+    .game-group { display: flex; flex-direction: column; gap: 16px; }
 
     .games {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 20px;
       width: 100%;
-      max-width: 900px;
     }
 
     .game-card {
@@ -228,105 +284,114 @@
 
   <div id="lb-theme" class="lb-theme"></div>
 
-  <main class="games">
+  <!-- Your games: open invites + rooms where it's your turn, across every game.
+       Populated by shared/home-dashboard.js (signed-in only); hidden until then. -->
+  <section id="home-yourgames" class="home-section hidden">
+    <div class="section-title">Your games</div>
+    <div id="yourgames-list" class="dash-list"></div>
+  </section>
 
-    <a class="game-card" href="chromagrid/">
-      <div class="game-label">// GAME 01 //</div>
-      <div class="game-name">CHROMAGRID</div>
-      <div class="game-desc">2 minutes. Flip tiles, match colours, pop groups. Score exponentially more for bigger combos — and chain-detonate bombs for maximum chaos.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
+  <!-- Daily challenges across all games that have one. -->
+  <section id="home-daily" class="home-section hidden">
+    <div class="section-title">Daily challenges</div>
+    <div id="daily-list" class="dash-list"></div>
+  </section>
 
-    <a class="game-card" href="wurdz/">
-      <div class="game-label">// GAME 02 //</div>
-      <div class="game-name">WURDZ</div>
-      <div class="game-desc">Two-player word game. Build words on the board, challenge dubious plays, and race for the best score — across the table or across the world.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
+  <main class="game-groups">
 
-    <a class="game-card" href="scramblr/">
-      <div class="game-label">// GAME 03 //</div>
-      <div class="game-name">SCRAMBLR</div>
-      <div class="game-desc">Fast multiplayer word hunt. Race a 3-minute timer to find words in a 4×4 grid — tap or swipe the letters. Rare words win; words everyone finds score nothing.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
+    <section class="game-group">
+      <div class="section-title">Table games</div>
+      <div class="games">
+        <a class="game-card" href="chess/">
+          <div class="game-name">CHESS</div>
+          <div class="game-desc">The classic game of kings. Checkmate your friend across the table or across the world — pick a per-move timer from 1 minute to 3 days, or no clock at all, with a guided tutorial that teaches the moves from scratch.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="weiqi/">
+          <div class="game-name">WEIQI</div>
+          <div class="game-desc">The ancient game of Go. Surround territory and capture stones on a 9×9, 13×13 or 19×19 board — with a 15-lesson training mode that teaches the rules and techniques from scratch. Play a friend across the world, at your own pace.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="draughts/">
+          <div class="game-name">DRAUGHTS</div>
+          <div class="game-desc">Checkers, the classic game of diagonal jumps. Force captures, chain multi-jumps and crown your kings — against a friend across the table or across days, with a per-move timer.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="backgammon/">
+          <div class="game-name">BACKGAMMON</div>
+          <div class="game-desc">The oldest board game there is. Roll the dice, race your checkers home and bear them off — hit blots to the bar and play for the gammon, with fair shared dice and a per-move timer.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+      </div>
+    </section>
 
-    <a class="game-card" href="splitz/">
-      <div class="game-label">// GAME 04 //</div>
-      <div class="game-name">SPLITZ</div>
-      <div class="game-desc">Multiplayer crossword tile race. Draw from a shared pool and race to build your own crossword — finish a grid to make everyone draw, swap tiles you don't want, and call Splitz to win.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
+    <section class="game-group">
+      <div class="section-title">Word games</div>
+      <div class="games">
+        <a class="game-card" href="wurdz/">
+          <div class="game-name">WURDZ</div>
+          <div class="game-desc">Two-player word game. Build words on the board, challenge dubious plays, and race for the best score — across the table or across the world.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="scramblr/">
+          <div class="game-name">SCRAMBLR</div>
+          <div class="game-desc">Fast multiplayer word hunt. Race a 3-minute timer to find words in a 4×4 grid — tap or swipe the letters. Rare words win; words everyone finds score nothing.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="splitz/">
+          <div class="game-name">SPLITZ</div>
+          <div class="game-desc">Multiplayer crossword tile race. Draw from a shared pool and race to build your own crossword — finish a grid to make everyone draw, swap tiles you don't want, and call Splitz to win.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="lexicorp/">
+          <div class="game-name">LEXICORP</div>
+          <div class="game-desc">Turn-based word empire. Spell words from your hand and a shared pool, patent letters to collect royalties when rivals use them, and cash out money and stock — richest tycoon wins.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+      </div>
+    </section>
 
-    <a class="game-card" href="lexicorp/">
-      <div class="game-label">// GAME 05 //</div>
-      <div class="game-name">LEXICORP</div>
-      <div class="game-desc">Turn-based word empire. Spell words from your hand and a shared pool, patent letters to collect royalties when rivals use them, and cash out money and stock — richest tycoon wins.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
+    <section class="game-group">
+      <div class="section-title">Quiz games</div>
+      <div class="games">
+        <a class="game-card" href="atlaz/">
+          <div class="game-name">ATLAZ</div>
+          <div class="game-desc">Map guessing games. Pinpoint countries, pick and type names from shapes, drag jigsaw pieces into place, or race to name every state on the map — solo or against friends.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="flagz/">
+          <div class="game-name">FLAGZ</div>
+          <div class="game-desc">Flag guessing games. Spot the flag from its name, name the country from its flag, or sort flags by alphabet, population and size — solo or against friends.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="atomyx/">
+          <div class="game-name">ATOMYX</div>
+          <div class="game-desc">Periodic table guessing games. Pinpoint elements on the table, name them from their symbols, sort them by atomic mass, rebuild a blank table, or race to name every element — solo or against friends.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <a class="game-card" href="buffz/">
+          <div class="game-name">BUFFZ</div>
+          <div class="game-desc">Movie &amp; TV trivia. Filter a pool of the best-known titles by decade, genre and type, then race through taglines, plots, casts, directors and release-date sorting — solo or against friends.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+      </div>
+    </section>
 
-    <a class="game-card" href="atlaz/">
-      <div class="game-label">// GAME 06 //</div>
-      <div class="game-name">ATLAZ</div>
-      <div class="game-desc">Map guessing games. Pinpoint countries, pick and type names from shapes, drag jigsaw pieces into place, or race to name every state on the map — solo or against friends.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="flagz/">
-      <div class="game-label">// GAME 07 //</div>
-      <div class="game-name">FLAGZ</div>
-      <div class="game-desc">Flag guessing games. Spot the flag from its name, name the country from its flag, or sort flags by alphabet, population and size — solo or against friends.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="atomyx/">
-      <div class="game-label">// GAME 08 //</div>
-      <div class="game-name">ATOMYX</div>
-      <div class="game-desc">Periodic table guessing games. Pinpoint elements on the table, name them from their symbols, sort them by atomic mass, rebuild a blank table, or race to name every element — solo or against friends.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="buffz/">
-      <div class="game-label">// GAME 09 //</div>
-      <div class="game-name">BUFFZ</div>
-      <div class="game-desc">Movie &amp; TV trivia. Filter a pool of the best-known titles by decade, genre and type, then race through taglines, plots, casts, directors and release-date sorting — solo or against friends.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="weiqi/">
-      <div class="game-label">// GAME 10 //</div>
-      <div class="game-name">WEIQI</div>
-      <div class="game-desc">The ancient game of Go. Surround territory and capture stones on a 9×9, 13×13 or 19×19 board — with a 15-lesson training mode that teaches the rules and techniques from scratch. Play a friend across the world, at your own pace.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="chess/">
-      <div class="game-label">// GAME 11 //</div>
-      <div class="game-name">CHESS</div>
-      <div class="game-desc">The classic game of kings. Checkmate your friend across the table or across the world — pick a per-move timer from 1 minute to 3 days, or no clock at all, with a guided tutorial that teaches the moves from scratch.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="draughts/">
-      <div class="game-label">// GAME 12 //</div>
-      <div class="game-name">DRAUGHTS</div>
-      <div class="game-desc">Checkers, the classic game of diagonal jumps. Force captures, chain multi-jumps and crown your kings — against a friend across the table or across days, with a per-move timer.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <a class="game-card" href="backgammon/">
-      <div class="game-label">// GAME 13 //</div>
-      <div class="game-name">BACKGAMMON</div>
-      <div class="game-desc">The oldest board game there is. Roll the dice, race your checkers home and bear them off — hit blots to the bar and play for the gammon, with fair shared dice and a per-move timer.</div>
-      <div class="game-play">PLAY →</div>
-    </a>
-
-    <div class="game-card coming-soon">
-      <div class="game-label">// GAME 14 //</div>
-      <div class="game-name">COMING SOON</div>
-      <div class="game-desc">Something new is being built. Check back soon.</div>
-      <div class="game-play">COMING SOON</div>
-    </div>
+    <section class="game-group">
+      <div class="section-title">Arcade</div>
+      <div class="games">
+        <a class="game-card" href="chromagrid/">
+          <div class="game-name">CHROMAGRID</div>
+          <div class="game-desc">2 minutes. Flip tiles, match colours, pop groups. Score exponentially more for bigger combos — and chain-detonate bombs for maximum chaos. Play the daily challenge for a shared board and a global leaderboard.</div>
+          <div class="game-play">PLAY →</div>
+        </a>
+        <div class="game-card coming-soon">
+          <div class="game-name">COMING SOON</div>
+          <div class="game-desc">Something new is being built. Check back soon.</div>
+          <div class="game-play">COMING SOON</div>
+        </div>
+      </div>
+    </section>
 
   </main>
 
