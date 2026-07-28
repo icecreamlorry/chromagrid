@@ -2300,6 +2300,7 @@
     } from './js/net.js';
     import { GAME_SLUG, configReady } from './js/config.js';
     import { createRematch } from '../shared/rematch.js';
+    import { takeRoomParam, hasDailyParam } from '../shared/deep-link.js';
     import { cachedUser, onAuthChange, displayName } from '../shared/auth.js';
     import { openHistory } from '../shared/history.js';
     import { filterDismissed, dismissGame, makeDismissControl } from '../shared/dismissed-games.js';
@@ -2765,6 +2766,15 @@
     // ---- Resume / boot ----------------------------------------------------
 
     async function tryResume() {
+      // Opened from the home page with ?room=CODE — join that room directly.
+      const urlCode = takeRoomParam();
+      if (urlCode) {
+        try {
+          const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
+          await enterRoom(urlCode, playerIndex, app.name, room);
+          return true;
+        } catch { /* fall through to the stored session */ }
+      }
       const raw = sessionStorage.getItem(SESSION_KEY);
       if (!raw) return false;
       try {
@@ -2786,7 +2796,9 @@
       $('btn-go-lobby')?.classList.toggle('hidden', !app.user);
       onAuthChange(onAuth);
       const resumed = await tryResume();
-      if (!resumed && app.user) showLobby();
+      // Opened from the home page with ?daily — go straight into today's challenge.
+      if (!resumed && hasDailyParam()) { hideLobby(); window.CG.startDaily(); }
+      else if (!resumed && app.user) showLobby();
       window.LBBoot?.done();
     }
 

@@ -8,6 +8,7 @@ import {
   finishRoom, RoomConnection, triggerPush, seatName, userSeat, seatLeft, markPlayerLeft,
 } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
+import { takeRoomParam } from '../../shared/deep-link.js';
 import { openHistory } from '../../shared/history.js';
 import {
   cachedUser, onAuthChange, displayName, signOut,
@@ -619,6 +620,15 @@ $('btn-resign').addEventListener('click', async () => {
 });
 
 async function tryResume() {
+  // Opened from the home page with ?room=CODE — join that room directly.
+  const urlCode = takeRoomParam();
+  if (urlCode) {
+    try {
+      const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
+      await enterRoom(urlCode, playerIndex, app.name, room);
+      return true;
+    } catch { /* fall through to the stored session */ }
+  }
   const raw = readSession();
   if (!raw) return false;
   try {

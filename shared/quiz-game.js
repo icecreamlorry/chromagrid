@@ -17,6 +17,8 @@
 // game's payload + startAt; every seat derives identical seeded rounds from the
 // room seed and races; each seat submits ONE sparse `result` move (index 10+seat).
 
+import { takeRoomParam } from './deep-link.js';
+
 const $ = (id) => document.getElementById(id);
 const COUNTDOWN_MS = 3000;
 const RESULT_MOVE_BASE = 10;
@@ -658,6 +660,15 @@ export function createQuizGame(cfg) {
 
   // ---- Resume / boot ----
   async function tryResume() {
+    // Opened from the home page with ?room=CODE — join that room directly.
+    const urlCode = takeRoomParam();
+    if (urlCode) {
+      try {
+        const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
+        await enterRoom(urlCode, playerIndex, app.name, room);
+        return true;
+      } catch { /* fall through to the stored session */ }
+    }
     const raw = readSession();
     if (!raw) return false;
     try {

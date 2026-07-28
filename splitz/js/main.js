@@ -13,6 +13,7 @@ import {
   finishRoom, RoomConnection, triggerPush, seatName, userSeat, markPlayerLeft,
 } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
+import { takeRoomParam } from '../../shared/deep-link.js';
 import { configReady, GAME_SLUG } from './config.js';
 import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
 import { openHistory } from '../../shared/history.js';
@@ -908,6 +909,15 @@ function revealNotify() {
 // ---- Resume / boot --------------------------------------------------------
 
 async function tryResume() {
+  // Opened from the home page with ?room=CODE — join that room directly.
+  const urlCode = takeRoomParam();
+  if (urlCode) {
+    try {
+      const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
+      await enterRoom(urlCode, playerIndex, app.name, room);
+      return true;
+    } catch { /* fall through to the stored session */ }
+  }
   const raw = readSession();
   if (!raw) return false;
   try {

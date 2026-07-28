@@ -425,6 +425,13 @@
     import { createThemePicker } from './shared/themes.js';
     document.getElementById('lb-theme')?.appendChild(createThemePicker());
   </script>
+  <script type="module">
+    // Cross-game dashboards: your open invites + your-turn rooms, and the daily
+    // challenges. Populates the (hidden-until-filled) sections above the grid.
+    import { initHomeDashboard } from './shared/home-dashboard.js';
+    import { cachedUser, onAuthChange } from './shared/auth.js';
+    initHomeDashboard({ cachedUser, onAuthChange });
+  </script>
 
   <script>
     // Show the deployed build under the title, using the latest commit hash on
