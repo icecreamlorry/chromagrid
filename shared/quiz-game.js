@@ -17,7 +17,7 @@
 // game's payload + startAt; every seat derives identical seeded rounds from the
 // room seed and races; each seat submits ONE sparse `result` move (index 10+seat).
 
-import { takeRoomParam } from './deep-link.js';
+import { takeRoomParam, roomShareUrl } from './deep-link.js';
 
 const $ = (id) => document.getElementById(id);
 const COUNTDOWN_MS = 3000;
@@ -286,7 +286,7 @@ export function createQuizGame(cfg) {
   }
 
   $('room-code-chip').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(app.code); setStatus('Room code copied.'); } catch {}
+    try { await navigator.clipboard.writeText(roomShareUrl(app.code)); setStatus('Invite link copied.'); } catch {}
   });
 
   // ---- Moves ----

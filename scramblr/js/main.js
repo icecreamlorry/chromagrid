@@ -12,7 +12,7 @@ import {
   finishRoom, RoomConnection, triggerPush, seatName, seatLeft, markPlayerLeft,
 } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
-import { takeRoomParam, hasDailyParam } from '../../shared/deep-link.js';
+import { takeRoomParam, hasDailyParam, roomShareUrl } from '../../shared/deep-link.js';
 import { configReady, GAME_SLUG } from './config.js';
 import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
 import { openHistory } from '../../shared/history.js';
@@ -349,7 +349,7 @@ function setConn(mode) {
 }
 
 $('room-code-chip').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(app.code); setStatus('Room code copied.'); } catch {}
+  try { await navigator.clipboard.writeText(roomShareUrl(app.code)); setStatus('Invite link copied.'); } catch {}
 });
 
 $('btn-leave').addEventListener('click', async () => {

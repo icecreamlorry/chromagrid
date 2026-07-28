@@ -8,7 +8,7 @@ import {
   finishRoom, RoomConnection, triggerPush, seatName, userSeat, seatLeft, markPlayerLeft, supabase,
 } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
-import { takeRoomParam } from '../../shared/deep-link.js';
+import { takeRoomParam, roomShareUrl } from '../../shared/deep-link.js';
 import { openHistory } from '../../shared/history.js';
 import { cachedUser, onAuthChange, displayName, signOut } from '../../shared/auth.js';
 import {
@@ -260,7 +260,7 @@ $('btn-leave').addEventListener('click', async () => {
   if (app.user) { app.conn?.close(); app.conn = null; app.code = null; app.playerIndex = null; app.room = null; app.state = null; app.work = null; app.pendingMoves = new Map(); showScreen('lobby'); renderLobby(); }
   else { try { await unsubscribeFromPush(); } catch { /* ignore */ } location.reload(); }
 });
-$('room-code-chip').addEventListener('click', async () => { try { await navigator.clipboard.writeText(app.code); setStatus('Room code copied to clipboard.'); } catch { /* ignore */ } });
+$('room-code-chip').addEventListener('click', async () => { try { await navigator.clipboard.writeText(roomShareUrl(app.code)); setStatus('Invite link copied.'); } catch { /* ignore */ } });
 $('btn-resign').addEventListener('click', async () => {
   if (!app.state || app.state.gameOver || (app.room?.player_count ?? 0) < 2) return;
   if (!(await confirmDialog({ title: 'Resign this game?', message: "You'll forfeit — your opponent wins and the game ends. This can't be undone.", confirmText: 'Resign', danger: true }))) return;

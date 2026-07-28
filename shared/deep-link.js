@@ -21,3 +21,15 @@ export function takeRoomParam() {
 export function hasDailyParam() {
   try { return new URL(location.href).searchParams.has('daily'); } catch { return false; }
 }
+
+// The shareable deep link to a room: the current game's URL with just ?room=CODE.
+// Handing a friend this link drops them straight into the room (see takeRoomParam).
+export function roomShareUrl(code) {
+  try {
+    const url = new URL(location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('room', String(code).toUpperCase());
+    return url.href;
+  } catch { return String(code); }
+}

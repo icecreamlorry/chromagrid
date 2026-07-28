@@ -893,7 +893,7 @@
           <button id="btn-start-room" class="hidden">START GAME</button>
           <p id="room-waiting" class="room-code-line hidden">Waiting for the host to start…</p>
           <div class="room-btn-row">
-            <button id="btn-room-share" class="link-btn">SHARE CODE</button>
+            <button id="btn-room-share" class="link-btn">SHARE LINK</button>
             <button id="btn-room-leave" class="link-btn">LEAVE</button>
           </div>
           <p id="room-status" class="status-line"></p>
@@ -2300,7 +2300,7 @@
     } from './js/net.js';
     import { GAME_SLUG, configReady } from './js/config.js';
     import { createRematch } from '../shared/rematch.js';
-    import { takeRoomParam, hasDailyParam } from '../shared/deep-link.js';
+    import { takeRoomParam, hasDailyParam, roomShareUrl } from '../shared/deep-link.js';
     import { cachedUser, onAuthChange, displayName } from '../shared/auth.js';
     import { openHistory } from '../shared/history.js';
     import { filterDismissed, dismissGame, makeDismissControl } from '../shared/dismissed-games.js';
@@ -2686,8 +2686,8 @@
 
     $('btn-room-share').addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText(app.code);
-        $('room-status').textContent = 'Room code copied.';
+        await navigator.clipboard.writeText(roomShareUrl(app.code));
+        $('room-status').textContent = 'Invite link copied.';
       } catch {}
     });
 
