@@ -1,7 +1,18 @@
 // Flagz game logic — pure functions, no DOM, no network (unit-tested by
 // test/engine.test.mjs under plain node). The seeded round builders are the
 // heart of multiplayer fairness: every seat derives identical rounds from the
-// room seed.
+// room seed. RNG, ordering-grade, answer-matching and ranking primitives are
+// shared with the other quiz games in shared/quiz-engine.js; only the round
+// BUILDER and the mode/difficulty tables are Flagz-specific.
+
+import {
+  mulberry32, shuffleWith,
+  expectedOrder as _expectedOrder, gradeOrder as _gradeOrder,
+  makeAnswerMatcher,
+  scoreOf, compareResults, rankSeats, winnerSeat,
+} from '../../shared/quiz-engine.js';
+
+export { mulberry32, shuffleWith, scoreOf, compareResults, rankSeats, winnerSeat };
 
 // ---- Game modes -------------------------------------------------------------
 
@@ -41,27 +52,6 @@ export function roundsFor(mode, diff, regionLen) {
   if (isOrderMode(mode)) return n ? Math.min(ORDER_ROUNDS, Math.floor(regionLen / Math.min(n, regionLen)) || 1) : 1;
   if (mode === 'namedrop') return q ? Math.min(q, regionLen) : regionLen;
   return Math.min(PICK_ROUNDS, regionLen);
-}
-
-// ---- Seeded RNG ----------------------------------------------------------------
-
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function shuffleWith(rand, array) {
-  const out = array.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 // ---- Round builders --------------------------------------------------------------
@@ -119,81 +109,14 @@ export function orderKey(mode, country) {
 
 // The expected arrangement for a round (ascending; A first for atoz).
 export function expectedOrder(mode, ids, countries) {
-  return ids.slice().sort((a, b) => {
-    const ka = orderKey(mode, countries[a]), kb = orderKey(mode, countries[b]);
-    return ka < kb ? -1 : ka > kb ? 1 : 0;
-  });
+  return _expectedOrder((c) => orderKey(mode, c), ids, countries);
 }
-
-// Grade a player's arrangement slot-by-slot. A slot is correct when its key
-// equals the key expected at that slot — so equal values (rare pop/area ties)
-// are interchangeable rather than punished.
 export function gradeOrder(mode, placed, countries) {
-  const expected = expectedOrder(mode, placed, countries);
-  return placed.map((id, i) => orderKey(mode, countries[id]) === orderKey(mode, countries[expected[i]]));
+  return _gradeOrder((c) => orderKey(mode, c), placed, countries);
 }
 
 // ---- Answer matching (namedrop) ------------------------------------------------------
-
-export function normalizeAnswer(s) {
-  let t = String(s ?? '').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/['’]/g, '')
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim().replace(/\s+/g, ' ');
-  t = t.replace(/^st /, 'saint ').replace(/ st /g, ' saint ');
-  t = t.replace(/^the /, ''); // "the bahamas" == "bahamas"
-  return t;
-}
-
-export function buildAnswerIndex(entries) {
-  // entries: [{ id, name, alt }]
-  const idx = new Map();
-  const packed = new Map();
-  for (const it of entries) {
-    for (const cand of [it.name, ...(it.alt || [])]) {
-      const key = normalizeAnswer(cand);
-      if (!key) continue;
-      if (!idx.has(key)) idx.set(key, it.id);
-      const p = key.replace(/ /g, '');
-      if (!packed.has(p)) packed.set(p, it.id);
-    }
-  }
-  idx.packed = packed;
-  return idx;
-}
-
-export function matchAnswer(index, input) {
-  const key = normalizeAnswer(input);
-  return index.get(key) ?? index.packed?.get(key.replace(/ /g, '')) ?? null;
-}
-
-// ---- Results / ranking ----------------------------------------------------------------
-// result: { outcomes, score, total, ms }. Score desc, then time asc, all modes.
-
-export function scoreOf(result) { return result ? (Number(result.score) || 0) : 0; }
-
-export function compareResults(a, b) {
-  const missing = (x) => (x ? 0 : 1);
-  if (missing(a) || missing(b)) return missing(a) - missing(b);
-  return (scoreOf(b) - scoreOf(a)) || (a.ms - b.ms);
-}
-
-export function rankSeats(results, seats) {
-  const list = [];
-  for (let s = 0; s < seats; s++) list.push(s);
-  return list.sort((a, b) => compareResults(results[a], results[b]) || a - b);
-}
-
-export function winnerSeat(results, seats) {
-  if (seats <= 1) return 0;
-  const ranked = rankSeats(results, seats);
-  const top = ranked[0];
-  if (!results[top]) return 'tie';
-  const next = ranked[1];
-  // A draw is an equal SCORE — time only breaks ties for list order, it doesn't
-  // decide the winner (otherwise an equal-score game is never a draw).
-  if (next != null && results[next] && scoreOf(results[top]) === scoreOf(results[next])) return 'tie';
-  return top;
-}
+// Country names unify "&"↔"and", "St"↔"Saint", drop a leading "The", and index
+// a space-stripped alias too ("U.S.A." → "usa").
+export const { normalizeAnswer, buildAnswerIndex, matchAnswer } =
+  makeAnswerMatcher({ amp: true, saint: true, dropThe: true, packed: true });

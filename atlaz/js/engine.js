@@ -1,5 +1,11 @@
 // Atlaz game logic — pure functions, no DOM, no network (unit-tested by
-// test/engine.test.mjs under plain node).
+// test/engine.test.mjs under plain node). The seeded RNG and answer-matching
+// come from shared/quiz-engine.js; the jigsaw geometry and Atlaz's sweep-aware
+// ranking are game-specific and live here.
+
+import { mulberry32, seededShuffle, makeAnswerMatcher } from '../../shared/quiz-engine.js';
+
+export { mulberry32, seededShuffle };
 
 // ---- Game modes -------------------------------------------------------------
 
@@ -14,72 +20,18 @@ export const MODES = [
 export function modeMeta(id) { return MODES.find((m) => m.id === id) || null; }
 
 // ---- Seeded shuffle ---------------------------------------------------------
-// Same seed (the room's) on every client → identical question order.
-
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function seededShuffle(array, seed) {
-  const rand = mulberry32(seed);
-  const out = array.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
-// The shared question order for a room: every seat shuffles the region's item
-// ids with the room seed.
+// mulberry32 + seededShuffle are shared (re-exported above). The shared question
+// order for a room: every seat shuffles the region's item ids with the room seed.
 export function questionOrder(items, seed) {
   return seededShuffle(items.map((it) => it.id), seed);
 }
 
 // ---- Answer matching (NAMEDROP / SWEEP) -------------------------------------
-
-// Lowercase, strip diacritics and punctuation, unify "&"/"and" and "st."/
-// "saint", collapse whitespace — so "São Tomé & Príncipe" == "sao tome and
-// principe" and "St Kitts" == "Saint Kitts".
-export function normalizeAnswer(s) {
-  let t = String(s ?? '').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/['’]/g, '')            // d'Ivoire → divoire
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim().replace(/\s+/g, ' ');
-  t = t.replace(/^st /, 'saint ').replace(/ st /g, ' saint ');
-  return t;
-}
-
-// normalized answer -> item id (name + all aliases). A second, space-stripped
-// index catches dotted/abbreviated typing ("U.S.A." → "u s a" → "usa").
-export function buildAnswerIndex(items) {
-  const idx = new Map();
-  const packed = new Map();
-  for (const it of items) {
-    for (const cand of [it.name, ...(it.alt || [])]) {
-      const key = normalizeAnswer(cand);
-      if (!key) continue;
-      if (!idx.has(key)) idx.set(key, it.id);
-      const p = key.replace(/ /g, '');
-      if (!packed.has(p)) packed.set(p, it.id);
-    }
-  }
-  idx.packed = packed;
-  return idx;
-}
-
-export function matchAnswer(index, input) {
-  const key = normalizeAnswer(input);
-  return index.get(key) ?? index.packed?.get(key.replace(/ /g, '')) ?? null;
-}
+// Country names unify "&"↔"and" and "St"↔"Saint", and index a space-stripped
+// alias too ("U.S.A." → "usa"). (No leading-"the" drop — Atlaz keeps that quirk
+// out; Flagz opts in.)
+export const { normalizeAnswer, buildAnswerIndex, matchAnswer } =
+  makeAnswerMatcher({ amp: true, saint: true, packed: true });
 
 // ---- Jigsaw tolerance --------------------------------------------------------
 // A drop counts as correct within max(55% of the piece's own bbox diagonal,

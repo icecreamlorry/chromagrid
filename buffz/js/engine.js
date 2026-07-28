@@ -6,6 +6,18 @@
 // only from the seeded RNG, iterates the pool in sorted-id order before the
 // seeded shuffle, and never touches Date/Math.random. Break that and
 // multiplayer silently stops being fair.
+//
+// RNG, ordering-grade and ranking primitives are shared with the other quiz
+// games in shared/quiz-engine.js; the question bank and round builder below are
+// Buffz-specific.
+
+import {
+  mulberry32, shuffleWith,
+  expectedOrder as _expectedOrder, gradeOrder as _gradeOrder,
+  scoreOf, compareResults, rankSeats, winnerSeat,
+} from '../../shared/quiz-engine.js';
+
+export { mulberry32, shuffleWith, scoreOf, compareResults, rankSeats, winnerSeat };
 
 // ---- Game modes -------------------------------------------------------------
 
@@ -41,27 +53,6 @@ export function roundsFor(mode, diff, poolLen) {
   const { n = 0, q = 0 } = diff || {};
   if (isOrderMode(mode)) return Math.min(ORDER_ROUNDS, Math.floor(poolLen / Math.min(n, poolLen)) || 1);
   return Math.min(q, poolLen);
-}
-
-// ---- Seeded RNG ----------------------------------------------------------------
-
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function shuffleWith(rand, array) {
-  const out = array.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 const pickFrom = (rand, arr) => arr[Math.floor(rand() * arr.length)];
@@ -576,44 +567,13 @@ export function orderKey(mode, item) {
 }
 
 export function expectedOrder(mode, ids, items) {
-  return ids.slice().sort((a, b) => {
-    const ka = orderKey(mode, items[a]), kb = orderKey(mode, items[b]);
-    return ka < kb ? -1 : ka > kb ? 1 : 0;
-  });
+  return _expectedOrder((it) => orderKey(mode, it), ids, items);
 }
-
 // A slot is correct when its key equals the key expected at that slot — equal
 // values (same year, same rating) are interchangeable rather than punished.
 export function gradeOrder(mode, placed, items) {
-  const expected = expectedOrder(mode, placed, items);
-  return placed.map((id, i) => orderKey(mode, items[id]) === orderKey(mode, items[expected[i]]));
+  return _gradeOrder((it) => orderKey(mode, it), placed, items);
 }
 
-// ---- Results / ranking ----------------------------------------------------------------
-// result: { outcomes, score, total, ms }. Score desc, then time asc, all modes.
-
-export function scoreOf(result) { return result ? (Number(result.score) || 0) : 0; }
-
-export function compareResults(a, b) {
-  const missing = (x) => (x ? 0 : 1);
-  if (missing(a) || missing(b)) return missing(a) - missing(b);
-  return (scoreOf(b) - scoreOf(a)) || (a.ms - b.ms);
-}
-
-export function rankSeats(results, seats) {
-  const list = [];
-  for (let s = 0; s < seats; s++) list.push(s);
-  return list.sort((a, b) => compareResults(results[a], results[b]) || a - b);
-}
-
-export function winnerSeat(results, seats) {
-  if (seats <= 1) return 0;
-  const ranked = rankSeats(results, seats);
-  const top = ranked[0];
-  if (!results[top]) return 'tie';
-  const next = ranked[1];
-  // A draw is an equal SCORE — time only breaks ties for list order, it doesn't
-  // decide the winner (otherwise an equal-score game is never a draw).
-  if (next != null && results[next] && scoreOf(results[top]) === scoreOf(results[next])) return 'tie';
-  return top;
-}
+// Results / ranking (scoreOf, compareResults, rankSeats, winnerSeat) are shared —
+// re-exported from shared/quiz-engine.js at the top.
