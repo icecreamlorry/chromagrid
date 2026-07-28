@@ -112,7 +112,10 @@
     }
     .section-title::after { content: ''; flex: 1; height: 1px; background: rgba(var(--neon),0.15); }
 
-    .dash-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    /* Two wide columns at the 900px max-width (min 320px keeps a 3rd from ever
+       fitting there), collapsing to one on narrow/mobile widths — so the status
+       lines ("Your turn vs …", "Play today · best …") stay readable. */
+    .dash-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 
     .dash-card {
       display: flex; align-items: center; gap: 12px;
