@@ -158,6 +158,21 @@ dataset against the clock, solo or in a room" game:
   bits so `test/engine.test.mjs` still imports everything from `js/engine.js`.
   Atlaz keeps its own sweep-aware ranking (the outlier).
 
+- `shared/quiz-game.js` — **the whole landing/lobby/room/results flow controller**
+  (`createQuizGame(cfg)`): screens, auth, lobby, presence, the prestart picker
+  frame, countdown + per-round timer, results/ranking/persistence, spectating,
+  the players strip, rematch, notifications and resume/boot. Each game passes a
+  thin `cfg` describing only what differs — its engine tables, `loadData`, the
+  picker rows (`buildCfgButtons` + `markSelected`), and how a picked config
+  becomes a `start` payload + seeded rounds (`startPayload` / `payloadValid` /
+  `buildRounds` / `resultMeta` / `historyDetail`). The DOM shell ids are shared
+  across the games; only the play STAGE id is a cfg field (`stageId`). **Flagz,
+  Atomyx and Buffz run on this** — their `main.js` is ~115–150 lines of config
+  (down from ~800). **Atlaz stays on its own `main.js`**: it loads region
+  geometry *asynchronously* at game start and uses mode-aware ranking + a jigsaw
+  mode, which don't fit the synchronous controller without endangering the other
+  three — it still shares `quiz-engine.js` + `quiz-game.css`.
+
 - `shared/quiz-game.css` — **the whole quiz game-shell layout** (landing/lobby
   cards, buttons, chips, players strip, prompt bar, mode-config picker,
   countdown, results table, overlays, status). Linked after `shared.css` and
