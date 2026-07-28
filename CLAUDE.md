@@ -89,6 +89,20 @@ lets its fixed width push past the edge → both bugs at once.
   graph only evaluates when that CDN is reachable. In a network-blocked sandbox
   the game screens won't boot; test game-independent pieces (engines, tutorials)
   in isolation instead.
+- `shared/home-dashboard.js` — the landing page's cross-game **"Your games"**
+  (open invites + rooms where it's your turn) and **"Daily challenges"**
+  dashboards. **Register a new game here** in `ROOM_GAMES` (kind `'replay'` if its
+  engine exposes `replayMoves(seed, moves) -> { turn, gameOver }`, else `'race'`
+  for a simultaneous game — races surface invites only) and/or `DAILY_GAMES` if it
+  has a real daily. Turn detection reuses the game's own engine (lazy-imported),
+  so there's nothing to store per game. Daily status reads the shared `scores`
+  table under `<slug>-daily-YYYYMMDD` — the same key the game submits to.
+- `shared/deep-link.js` — `takeRoomParam()` / `hasDailyParam()`. The home
+  dashboards link to `<game>/?room=CODE` and `<game>/?daily`; every room game's
+  `tryResume()` calls `takeRoomParam()` first (join that room, else fall through
+  to the stored session) and the two daily games trigger their daily on
+  `hasDailyParam()`. **A new room game must add the same `takeRoomParam()` line to
+  its resume** or its dashboard cards won't open the right room.
 
 ### Turn-based table-game kit (Chess, Weiqi, Draughts, Backgammon, …)
 
