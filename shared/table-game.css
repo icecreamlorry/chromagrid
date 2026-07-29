@@ -31,14 +31,17 @@ input, textarea { user-select: text; }
 
 .landing-card {
   background: var(--panel);
-  padding: 48px 56px;
+  padding: 48px 40px;
   border-radius: var(--panel-radius);
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
   width: min(420px, 92vw);
+  container-type: inline-size;   /* so .logo can auto-fit the card width */
 }
+/* Cap at 60px for short names (Chess, Weiqi…) but shrink to fit the card for
+   long ones (Backgammon) instead of spilling out both sides. */
 .logo {
-  font-size: 60px; margin: 0; letter-spacing: 2px;
+  font-size: min(60px, 15cqi); margin: 0; letter-spacing: 2px; white-space: nowrap;
   color: var(--cyan); text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 .logo-small { font-size: 26px; }
