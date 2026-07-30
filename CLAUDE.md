@@ -83,7 +83,15 @@ lets its fixed width push past the edge → both bugs at once.
 - `shared/rooms.js` + `shared/net.js` — rooms, moves, realtime, push. Each game's
   `js/net.js` calls `createNet(GAME_SLUG)`.
 - `shared/account-ui.js` / `shared/lobby-ui.js` — auth modals, hamburger menu,
-  the injected lobby card + account bar.
+  the injected lobby card + account bar. **The landing account bar is shared
+  chrome present on every game** (mount point `<div id="account-bar"></div>`),
+  and it now owns the guest **"Your name" box** (`#landing-name-input`):
+  `lobby-ui.js` injects it, `account-ui.js` prefills/persists it (via
+  `getGuestName`/`setGuestName`) and shows it for guests / swaps to "Signed in
+  as …" when logged in. **A game must NOT add its own `#landing-name-input`** —
+  it gets one for free; just read `$('landing-name-input').value` (or
+  `getGuestName()`) at create/join time. This is what keeps landing
+  functionality identical across the table, word and quiz families.
 - `shared/boot.js` — the boot veil (lifts on `LBBoot.done()`, 8s failsafe).
 - `shared/supabaseClient.js` imports supabase-js from a **CDN**, so the whole app
   graph only evaluates when that CDN is reachable. In a network-blocked sandbox

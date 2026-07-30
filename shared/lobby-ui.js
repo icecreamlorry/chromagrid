@@ -21,8 +21,9 @@ const NAME = (cfg.gameName || 'LB GAMES').toUpperCase();
 const accountBar = document.getElementById('account-bar');
 if (accountBar) {
   accountBar.innerHTML = `
+    <input id="landing-name-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" spellcheck="false">
     <div class="account-row">
-      <span id="account-line">Playing as a guest</span>
+      <span id="account-line" class="hidden"></span>
       <button id="btn-login" class="link-btn login-link">Log in</button>
     </div>
     <div class="account-actions">

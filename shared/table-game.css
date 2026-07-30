@@ -48,7 +48,9 @@ input, textarea { user-select: text; }
 .logo.small { font-size: 26px; letter-spacing: 1px; }
 .tagline { color: var(--muted); margin-top: 4px; }
 
-#landing-name-input, #code-input {
+/* #landing-name-input now lives in the shared account bar (styled in
+   shared.css), so every game gets the same guest name box. */
+#code-input {
   width: 100%; padding: 12px 14px; margin-top: 18px;
   border-radius: var(--ui-radius); border: 2px solid var(--panel-light);
   background: var(--dark); color: var(--text); font-size: 18px; text-align: center;

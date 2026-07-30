@@ -560,8 +560,6 @@ async function boot() {
   app.confirmMoves = confirmEnabled(GAME_SLUG, true);
   injectConfirmToggle(GAME_SLUG, true, (on) => { app.confirmMoves = on; });
 
-  $('landing-name-input').value = getGuestName();
-  $('landing-name-input').addEventListener('input', () => setGuestName($('landing-name-input').value));
 
   if (!configReady()) {
     landingError('Setup needed: paste your Supabase anon key into shared/supabase-config.js (see README).');
