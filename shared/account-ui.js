@@ -18,7 +18,7 @@
 // The game's HTML must include the elements account-ui writes into:
 //   #gameover-overlay, #lb-panel, #lb-status, #lb-list, #lb-actions,
 //   #lb-set-name, #lb-login, #go-score  (for in-game leaderboard panel)
-//   #account-bar > #account-line, #btn-set-name, #btn-login, #btn-logout
+//   #account-bar > #account-line, #btn-login, #btn-logout
 //   (for the start-screen account bar)
 // All of those are accessed with null-guards so future games can omit them.
 
@@ -252,11 +252,6 @@ function renderAccount() {
     if (signedIn)    line.innerHTML = 'Signed in as <strong>' + esc(name) + '</strong>';
     else if (name)   line.innerHTML = 'Playing as <strong>' + esc(name) + '</strong>';
     else             line.textContent = 'Playing as a guest';
-  }
-  const btnName = $('btn-set-name');
-  if (btnName) {
-    btnName.textContent = (name && !signedIn) ? 'CHANGE NAME' : 'SET NAME';
-    btnName.classList.toggle('hidden', signedIn);
   }
   $('btn-login')?.classList.toggle('hidden', signedIn);
   $('btn-logout')?.classList.toggle('hidden', !signedIn);
@@ -700,7 +695,6 @@ function wire() {
 
   $('btn-login')?.addEventListener('click',    () => openAuth('signin'));
   $('btn-logout')?.addEventListener('click',   async () => { try { await signOut(); } catch {} });
-  $('btn-set-name')?.addEventListener('click', openName);
 
   $('auth-close').addEventListener('click',      closeAuth);
   $('auth-tab-signin').addEventListener('click', () => { authStatus(''); setAuthMode('signin'); });

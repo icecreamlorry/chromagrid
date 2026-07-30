@@ -21,10 +21,11 @@ const NAME = (cfg.gameName || 'LB GAMES').toUpperCase();
 const accountBar = document.getElementById('account-bar');
 if (accountBar) {
   accountBar.innerHTML = `
-    <div id="account-line">Playing as a guest</div>
+    <div class="account-row">
+      <span id="account-line">Playing as a guest</span>
+      <button id="btn-login" class="link-btn login-link">Log in</button>
+    </div>
     <div class="account-actions">
-      <button id="btn-set-name" class="link-btn">SET NAME</button>
-      <button id="btn-login" class="link-btn">LOG IN</button>
       <button id="btn-logout" class="link-btn hidden">LOG OUT</button>
       <button id="btn-go-lobby" class="link-btn hidden">MY GAMES</button>
     </div>

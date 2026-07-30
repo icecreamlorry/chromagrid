@@ -270,6 +270,13 @@ button:disabled:hover {
 
 .account-actions { display: flex; gap: 8px; }
 
+/* Guest status + a prominent inline "Log in" link on the start screens. */
+.account-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.login-link {
+  font-size: 0.9rem; text-transform: none; letter-spacing: 0.01em; padding: 0;
+  color: var(--cyan); text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* ── animations ──────────────────────────────────────────────────────────── */
 
 @keyframes ov-fade { from { opacity: 0; } to { opacity: 1; } }
