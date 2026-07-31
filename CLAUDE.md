@@ -73,6 +73,16 @@ html, body { height: 100%; overflow: hidden; }
   itself (full width) and make the header `position: sticky; top: 0` so it stays
   put — then any scrollbar sits at the very window edge, and the board's
   `min(…, 62vh)` cap usually means no scrollbar is needed at all.
+- **A square grid board that must fit a flex cell** (Scramblr's `.board-box` in
+  the header/roster/foot column): size it with container-query units, not a
+  guessed viewport fraction. Make the wrapper `container-type: size` and the box
+  `width: min(100cqmin, CAP); height: min(100cqmin, CAP)` — `cqmin` is the wrap's
+  shorter side, so the board tracks the real leftover height. A guessed
+  `min(92vw, 60vh)` square ignores the actual space and, since iOS Safari won't
+  shrink an `aspect-ratio` box against `max-height`, its bottom row gets clipped
+  by `overflow: hidden`. Also give the grid `grid-template-columns/-auto-rows:
+  minmax(0, 1fr)` (NOT bare `1fr`, which is `minmax(auto,1fr)` and keeps a
+  min-content floor) so the tiles shrink to fill the box instead of overflowing.
 - **Fixed-size boards/canvases in an `align-items: stretch` flex column** hug the
   left with a gap on the right: the panel stretches to the widest sibling (title,
   score bar) while the fixed-size board stays left-aligned inside it. Worst on a
