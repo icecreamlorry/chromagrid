@@ -50,8 +50,8 @@ const DAILY_GAMES = [
 
 // Initials fallback shown behind the favicon (if the icon fails to load).
 const badge = (name) => esc(name.slice(0, 2).toUpperCase());
-// Each game's favicon. Chromagrid has no per-game icon, so it uses the site one.
-const iconFor = (game) => (game.slug === 'chromagrid' ? 'favicon.svg' : `${game.href}icons/icon-192.png`);
+// Each game's favicon
+const iconFor = (game) => `${game.href}icons/icon.svg`;
 const badgeHtml = (game) => `<span class="dash-badge">${badge(game.name)}<img src="${iconFor(game)}" alt="" onerror="this.remove()"></span>`;
 
 // ---- Turn resolution (reuses each game's engine) ----------------------------
