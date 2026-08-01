@@ -275,7 +275,7 @@ async function tryResume() {
   if (urlCode) {
     try {
       const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
-      await enterRoom(urlCode, playerIndex, app.name, room);
+      await enterRoom(urlCode, playerIndex, seatName(room, playerIndex) || 'Guest', room);
       return true;
     } catch { /* fall through to the stored session */ }
   }
@@ -560,8 +560,6 @@ async function boot() {
   app.confirmMoves = confirmEnabled(GAME_SLUG, true);
   injectConfirmToggle(GAME_SLUG, true, (on) => { app.confirmMoves = on; });
 
-  $('landing-name-input').value = getGuestName();
-  $('landing-name-input').addEventListener('input', () => setGuestName($('landing-name-input').value));
 
   if (!configReady()) {
     landingError('Setup needed: paste your Supabase anon key into shared/supabase-config.js (see README).');

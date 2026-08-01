@@ -914,7 +914,7 @@ async function tryResume() {
   if (urlCode) {
     try {
       const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
-      await enterRoom(urlCode, playerIndex, app.name, room);
+      await enterRoom(urlCode, playerIndex, seatName(room, playerIndex) || 'Guest', room);
       return true;
     } catch { /* fall through to the stored session */ }
   }

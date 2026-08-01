@@ -48,7 +48,11 @@ const DAILY_GAMES = [
   { slug: 'scramblr', name: 'Scramblr', href: 'scramblr/' },
 ];
 
+// Initials fallback shown behind the favicon (if the icon fails to load).
 const badge = (name) => esc(name.slice(0, 2).toUpperCase());
+// Each game's favicon. Chromagrid has no per-game icon, so it uses the site one.
+const iconFor = (game) => (game.slug === 'chromagrid' ? 'favicon.svg' : `${game.href}icons/icon-192.png`);
+const badgeHtml = (game) => `<span class="dash-badge">${badge(game.name)}<img src="${iconFor(game)}" alt="" onerror="this.remove()"></span>`;
 
 // ---- Turn resolution (reuses each game's engine) ----------------------------
 
@@ -137,7 +141,7 @@ function renderYourGames(rows) {
     a.href = `${r.game.href}?room=${encodeURIComponent(r.room.code)}`;
     const tag = r.kind === 'invite' ? 'invite' : 'turn';
     const tagText = r.kind === 'invite' ? 'Invite' : 'Your turn';
-    a.innerHTML = `<span class="dash-badge">${badge(r.game.name)}</span>`
+    a.innerHTML = badgeHtml(r.game)
       + `<span class="dash-body"><span class="dash-game">${esc(r.game.name)}</span>`
       + `<span class="dash-line">${esc(r.label)}</span></span>`
       + `<span class="dash-tag ${tag}">${tagText}</span>`;
@@ -199,7 +203,7 @@ function renderDaily(statuses) {
       : `Play today · ${bestTxt}`;
     const tag = done ? 'done' : 'todo';
     const tagText = done ? 'Done' : 'Play';
-    a.innerHTML = `<span class="dash-badge">☀</span>`
+    a.innerHTML = badgeHtml(s.game)
       + `<span class="dash-body"><span class="dash-game">${esc(s.game.name)}</span>`
       + `<span class="dash-line">${esc(line)}</span></span>`
       + `<span class="dash-tag ${tag}">${tagText}</span>`;

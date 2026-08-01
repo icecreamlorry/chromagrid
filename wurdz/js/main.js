@@ -625,7 +625,7 @@ async function tryResume() {
   if (urlCode) {
     try {
       const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
-      await enterRoom(urlCode, playerIndex, app.name, room);
+      await enterRoom(urlCode, playerIndex, seatName(room, playerIndex) || 'Guest', room);
       return true;
     } catch { /* fall through to the stored session */ }
   }
@@ -1495,8 +1495,6 @@ async function boot() {
 
   // Seed the guest name field from the shared key (set on the landing page or
   // any other game) and keep it in sync as it's edited here.
-  $('landing-name-input').value = getGuestName();
-  $('landing-name-input').addEventListener('input', () => setGuestName($('landing-name-input').value));
 
   if (!configReady()) {
     landingError('Setup needed: paste your Supabase anon key into js/config.js (see README).');

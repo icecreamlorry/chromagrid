@@ -12,6 +12,12 @@
 
 * { box-sizing: border-box; user-select: none; }
 html, body { height: 100%; overflow: hidden; }
+
+/* The centred game-column width. The header content, the board column AND the
+   fixed hamburger's inset ALL derive from this one number, so they can never
+   drift into an overlap or leave the burger stranded in a far corner. Change
+   the column width here and everything tracks it. See ".game-header" below. */
+:root { --shell-max: 680px; }
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -25,27 +31,36 @@ input, textarea { user-select: text; }
 .screen { height: 100%; }
 
 #screen-landing { overflow-y: auto; overflow-x: hidden; min-height: 100%; display: flex; align-items: center; justify-content: center; }
-#screen-game, #screen-tutorial { display: flex; flex-direction: column; overflow: hidden; }
+/* The game screen owns the vertical scroll (not the inner column), so when a
+   scrollbar IS needed it sits at the very window edge instead of floating at the
+   column edge — and never sideways. The sticky header stays put while it scrolls. */
+#screen-game { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+#screen-tutorial { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ---- Landing ---- */
 
 .landing-card {
   background: var(--panel);
-  padding: 48px 56px;
+  padding: 48px 40px;
   border-radius: var(--panel-radius);
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
   width: min(420px, 92vw);
+  container-type: inline-size;   /* so .logo can auto-fit the card width */
 }
+/* Cap at 60px for short names (Chess, Weiqi…) but shrink to fit the card for
+   long ones (Backgammon) instead of spilling out both sides. */
 .logo {
-  font-size: 60px; margin: 0; letter-spacing: 2px;
+  font-size: min(60px, 15cqi); margin: 0; letter-spacing: 2px; white-space: nowrap;
   color: var(--cyan); text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 .logo-small { font-size: 26px; }
 .logo.small { font-size: 26px; letter-spacing: 1px; }
 .tagline { color: var(--muted); margin-top: 4px; }
 
-#landing-name-input, #code-input {
+/* #landing-name-input now lives in the shared account bar (styled in
+   shared.css), so every game gets the same guest name box. */
+#code-input {
   width: 100%; padding: 12px 14px; margin-top: 18px;
   border-radius: var(--ui-radius); border: 2px solid var(--panel-light);
   background: var(--dark); color: var(--text); font-size: 18px; text-align: center;
@@ -76,22 +91,30 @@ input, textarea { user-select: text; }
 /* ---- Game header ---- */
 
 .game-header {
+  position: sticky; top: 0; z-index: 6;
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: 8px 12px; padding: 10px 18px; background: var(--panel);
-  /* Reserve the top-right corner for the shared fixed hamburger (#btn-menu,
-     injected by account-ui at z-index 970) so it never lands on the header's
-     own buttons. Applies to the game AND tutorial headers. */
-  padding-right: 58px;
+  gap: 8px 12px; background: var(--panel);
   padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-bottom: 10px;
+  /* The panel bar spans full width, but its CONTENTS are centred inside the same
+     --shell-max column as the board (via symmetric left/right padding), so the
+     title and room/leave chips sit beside the board — never pinned to the far
+     window corners. The right padding also reserves the 48px the fixed burger
+     occupies. Because both this padding AND the burger's inset (below) are
+     computed from --shell-max, the burger can never overlap a header chip at
+     any width — the reserved gap stays constant as the window resizes. */
+  padding-left:  max(18px, calc(50% - var(--shell-max) / 2));
+  padding-right: max(58px, calc(50% - var(--shell-max) / 2 + 58px));
 }
 .game-header .logo { margin-right: auto; }
 
-/* On wide screens pull the hamburger in beside the centred column. */
-@media (min-width: 561px) {
-  #screen-game:not(.hidden) ~ #btn-menu,
-  #screen-game:not(.hidden) ~ #app-menu {
-    right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - 340px + 6px));
-  }
+/* Anchor the burger (and its dropdown) to the game column's right edge at every
+   width; max() clamps it to the window corner on narrow screens. No breakpoint —
+   the reserve in .game-header tracks the exact same expression, so they stay in
+   lockstep and never collide. */
+#screen-game:not(.hidden) ~ #btn-menu,
+#screen-game:not(.hidden) ~ #app-menu {
+  right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - var(--shell-max) / 2 + 6px));
 }
 
 /* Tutorial header — fixed two-line layout so a long title never spills to a
@@ -115,11 +138,12 @@ input, textarea { user-select: text; }
 
 .table {
   /* width:100% (not just max-width) so the column has a DEFINITE width, or the
-     board SVG collapses to its intrinsic size. scrollbar-gutter keeps the board
-     a fixed size whether or not a scrollbar appears. */
-  width: 100%; max-width: 680px; margin: 0 auto; padding: 12px 14px 20px;
+     board SVG collapses to its intrinsic size. The screen (#screen-game) owns
+     the scroll now, so this column no longer scrolls itself — that keeps any
+     scrollbar at the window edge rather than floating at the column edge. */
+  width: 100%; max-width: var(--shell-max); margin: 0 auto; padding: 12px 14px 20px;
   display: flex; flex-direction: column; gap: 10px;
-  flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch;
+  flex: 0 0 auto; -webkit-overflow-scrolling: touch;
 }
 /* Two rows: name on top (one line), then the material/clock/turn cluster below —
    a long name is preserved and the "your turn" pill never wraps. */

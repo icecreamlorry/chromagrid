@@ -80,11 +80,12 @@ button, button:hover, button:focus { box-shadow: none; }
 /* ---- Top bars ---- */
 .game-bar { padding: calc(env(safe-area-inset-top, 0px) + 8px) 64px 8px 12px; display: flex; align-items: center; gap: 8px; }
 .game-bar, .players-strip { max-width: 640px; margin-inline: auto; width: 100%; }
-@media (min-width: 561px) {
-  #screen-game:not(.hidden) ~ #btn-menu,
-  #screen-game:not(.hidden) ~ #app-menu {
-    right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - 320px + 6px));
-  }
+/* Anchor the burger to the game column's right edge at every width (max() clamps
+   it to the window corner on narrow screens). No breakpoint — .game-bar always
+   reserves the 64px on its right, so the two stay in lockstep and never collide. */
+#screen-game:not(.hidden) ~ #btn-menu,
+#screen-game:not(.hidden) ~ #app-menu {
+  right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - 320px + 6px));
 }
 .chip {
   background: color-mix(in srgb, var(--cyan) 10%, transparent);

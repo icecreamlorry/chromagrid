@@ -17,33 +17,36 @@ the same things.**
 `shared/account-ui.js` injects a **`position: fixed` hamburger button at the
 top-right corner** (`#btn-menu`, z-index 970), on *every* screen. Any content a
 screen puts in that corner will collide with it unless the screen reserves the
-space. Required per game:
+space — **and it must never be pinned to the far window corner on wide screens**
+either (too far from the centred content). Both are solved by one rule: the
+header content and the burger's inset must **derive from the same column-width
+number** so they can't drift into an overlap as the window resizes.
 
-- **Game screen header** (and any other custom header, e.g. a tutorial header) —
-  the header's own CSS must clear the corner:
-  ```css
-  .game-header {
-    padding-right: 58px;                                   /* clear the 36px button */
-    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-  }
-  ```
-- **Wide screens** — pull the button in beside the centred column instead of the
-  far window corner (cosmetic, but every game does it). `N` = half the game
-  column's max-width:
-  ```css
-  @media (min-width: 561px) {
-    #screen-game:not(.hidden) ~ #btn-menu,
-    #screen-game:not(.hidden) ~ #app-menu {
-      right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - N + 6px));
-    }
-  }
-  ```
+**Both game kits already do this — reuse them, don't re-hand-roll the padding:**
+
+- **Table games** (`shared/table-game.css`): the column width is the single var
+  `:root { --shell-max: 680px }`. `.game-header` is a full-width panel bar whose
+  *content* is centred inside that column via symmetric padding
+  (`padding-left/right: max(edge, calc(50% - var(--shell-max)/2 [+58px]))`), the
+  `.table` board column is `max-width: var(--shell-max)`, and the burger is
+  anchored to the column's right edge with the **same** expression
+  (`#screen-game:not(.hidden) ~ #btn-menu { right: max(edge, calc(50% - var(--shell-max)/2 + 6px)) }`,
+  no breakpoint — `max()` clamps it to the window corner on narrow screens). The
+  right padding reserves the button, and because both sides track `--shell-max`
+  the reserved gap is constant at every width → the burger can never overlap a
+  chip, and the header sits beside the board, not in the corner. A new table game
+  gets all of this free from `.game-header`/`.table`; **never re-add per-game
+  padding or a `min-width` burger media query.**
+- **Quiz games** (`shared/quiz-game.css`): same idea via
+  `.game-bar { max-width: 640px; margin-inline: auto }` (reserves 64px on the
+  right) + the matching gate-free burger anchor.
 - **Lobby ("My Games")** — the shared card header clears the button via
   `shared/shared.css` (`#screen-lobby .bar { padding-right: 52px }`), so you get
   this for free **as long as** you don't override `.bar`.
 
-Verify at ~412px wide that the button doesn't sit on the Leave/Resign/LOG OUT
-buttons.
+Verify at ~412px, ~760px (the nastiest — burger and chips both near the corner)
+and ≥1100px wide that the button never overlaps the Room/Leave/Resign chips and
+that the header content stays beside the board rather than in the window corner.
 
 ### 2. No horizontal scroll; screens are centred
 
@@ -64,6 +67,22 @@ html, body { height: 100%; overflow: hidden; }
   viewport.
 - Wide content (boards, tables, code) scrolls inside its own
   `overflow-x: auto` container — the page body never scrolls sideways.
+- **The scrolling game screen owns its vertical scroll, not the inner column.**
+  A scrollbar on the centred `.table`/column floats at the *column* edge (inset
+  from the window) which looks broken. Put `overflow-y: auto` on `#screen-game`
+  itself (full width) and make the header `position: sticky; top: 0` so it stays
+  put — then any scrollbar sits at the very window edge, and the board's
+  `min(…, 62vh)` cap usually means no scrollbar is needed at all.
+- **A square grid board that must fit a flex cell** (Scramblr's `.board-box` in
+  the header/roster/foot column): size it with container-query units, not a
+  guessed viewport fraction. Make the wrapper `container-type: size` and the box
+  `width: min(100cqmin, CAP); height: min(100cqmin, CAP)` — `cqmin` is the wrap's
+  shorter side, so the board tracks the real leftover height. A guessed
+  `min(92vw, 60vh)` square ignores the actual space and, since iOS Safari won't
+  shrink an `aspect-ratio` box against `max-height`, its bottom row gets clipped
+  by `overflow: hidden`. Also give the grid `grid-template-columns/-auto-rows:
+  minmax(0, 1fr)` (NOT bare `1fr`, which is `minmax(auto,1fr)` and keeps a
+  min-content floor) so the tiles shrink to fill the box instead of overflowing.
 - **Fixed-size boards/canvases in an `align-items: stretch` flex column** hug the
   left with a gap on the right: the panel stretches to the widest sibling (title,
   score bar) while the fixed-size board stays left-aligned inside it. Worst on a
@@ -83,7 +102,15 @@ lets its fixed width push past the edge → both bugs at once.
 - `shared/rooms.js` + `shared/net.js` — rooms, moves, realtime, push. Each game's
   `js/net.js` calls `createNet(GAME_SLUG)`.
 - `shared/account-ui.js` / `shared/lobby-ui.js` — auth modals, hamburger menu,
-  the injected lobby card + account bar.
+  the injected lobby card + account bar. **The landing account bar is shared
+  chrome present on every game** (mount point `<div id="account-bar"></div>`),
+  and it now owns the guest **"Your name" box** (`#landing-name-input`):
+  `lobby-ui.js` injects it, `account-ui.js` prefills/persists it (via
+  `getGuestName`/`setGuestName`) and shows it for guests / swaps to "Signed in
+  as …" when logged in. **A game must NOT add its own `#landing-name-input`** —
+  it gets one for free; just read `$('landing-name-input').value` (or
+  `getGuestName()`) at create/join time. This is what keeps landing
+  functionality identical across the table, word and quiz families.
 - `shared/boot.js` — the boot veil (lifts on `LBBoot.done()`, 8s failsafe).
 - `shared/supabaseClient.js` imports supabase-js from a **CDN**, so the whole app
   graph only evaluates when that CDN is reachable. In a network-blocked sandbox

@@ -23,6 +23,15 @@ function randomCode(len = 6) {
 
 // ---- Room player helpers ---------------------------------------------------
 
+// A seat always stores a real display name — never null/empty. This is the
+// backstop for entry paths that skip the name prompt (notably the ?room= deep
+// links), so an opponent never sees "null" and nothing downstream breaks on a
+// missing name. Callers should still pass a good name; this only fills the gap.
+export function cleanName(name) {
+  const v = (typeof name === 'string' ? name.trim() : '').slice(0, 20);
+  return v || 'Guest';
+}
+
 // Name of the player at seat index, or null if that seat is empty.
 export function seatName(room, seat) {
   return room.players?.[seat]?.name ?? null;
@@ -52,7 +61,7 @@ export function seatLeft(room, seat) {
 // maxPlayers defaults to 2; pass higher for multiplayer games.
 export async function createRoom(hostName, hostUserId = null, invite = null, gameSlug, maxPlayers = 2) {
   const seed = Math.floor(Math.random() * 2 ** 31);
-  const hostPlayer = { seat: 0, name: hostName, userId: hostUserId ?? null };
+  const hostPlayer = { seat: 0, name: cleanName(hostName), userId: hostUserId ?? null };
   if (!hostUserId) hostPlayer.guestId = getGuestId(); // distinguish same-named guests
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();
@@ -117,7 +126,7 @@ export async function joinRoom(code, name, userId = null) {
   }
 
   const nextSeat = room.player_count;
-  const newPlayer = { seat: nextSeat, name, userId: userId ?? null };
+  const newPlayer = { seat: nextSeat, name: cleanName(name), userId: userId ?? null };
   if (!userId) newPlayer.guestId = getGuestId();
   const newPlayers = [...players, newPlayer];
   const newStatus = nextSeat + 1 >= room.max_players ? 'full' : 'waiting';

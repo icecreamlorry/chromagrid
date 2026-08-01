@@ -112,7 +112,10 @@
     }
     .section-title::after { content: ''; flex: 1; height: 1px; background: rgba(var(--neon),0.15); }
 
-    .dash-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    /* Two wide columns at the 900px max-width (min 320px keeps a 3rd from ever
+       fitting there), collapsing to one on narrow/mobile widths — so the status
+       lines ("Your turn vs …", "Play today · best …") stay readable. */
+    .dash-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 
     .dash-card {
       display: flex; align-items: center; gap: 12px;
@@ -134,7 +137,11 @@
       font-family: var(--font-ui); font-weight: 800; font-size: 0.9rem;
       background: color-mix(in srgb, var(--cyan) 12%, transparent);
       color: var(--cyan); letter-spacing: 0.02em;
+      position: relative; overflow: hidden;
     }
+    /* The game's favicon covers the initials; if it fails to load, onerror
+       removes it and the initials underneath show through. */
+    .dash-badge img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .dash-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
     .dash-game { font-family: var(--font-ui); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--cyan); }
     .dash-line { font-size: 0.68rem; color: rgba(var(--neon),0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

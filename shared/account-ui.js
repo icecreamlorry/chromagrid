@@ -18,7 +18,7 @@
 // The game's HTML must include the elements account-ui writes into:
 //   #gameover-overlay, #lb-panel, #lb-status, #lb-list, #lb-actions,
 //   #lb-set-name, #lb-login, #go-score  (for in-game leaderboard panel)
-//   #account-bar > #account-line, #btn-set-name, #btn-login, #btn-logout
+//   #account-bar > #landing-name-input, #account-line, #btn-login, #btn-logout
 //   (for the start-screen account bar)
 // All of those are accessed with null-guards so future games can omit them.
 
@@ -247,16 +247,19 @@ function confirmOpen() { return !$('confirm-modal').classList.contains('hidden')
 function renderAccount() {
   const name    = currentName();
   const signedIn = !!app.user;
-  const line    = $('account-line');
-  if (line) {
-    if (signedIn)    line.innerHTML = 'Signed in as <strong>' + esc(name) + '</strong>';
-    else if (name)   line.innerHTML = 'Playing as <strong>' + esc(name) + '</strong>';
-    else             line.textContent = 'Playing as a guest';
+  // Guests get an editable name box (the shared landing chrome, same on every
+  // game); signed-in players get a read-only "Signed in as …" line instead.
+  const box = $('landing-name-input');
+  if (box) {
+    box.classList.toggle('hidden', signedIn);
+    // Keep it in sync with the current name, but never clobber the caret while
+    // the user is mid-edit.
+    if (!signedIn && document.activeElement !== box) box.value = name || '';
   }
-  const btnName = $('btn-set-name');
-  if (btnName) {
-    btnName.textContent = (name && !signedIn) ? 'CHANGE NAME' : 'SET NAME';
-    btnName.classList.toggle('hidden', signedIn);
+  const line = $('account-line');
+  if (line) {
+    line.classList.toggle('hidden', !signedIn);
+    if (signedIn) line.innerHTML = 'Signed in as <strong>' + esc(name) + '</strong>';
   }
   $('btn-login')?.classList.toggle('hidden', signedIn);
   $('btn-logout')?.classList.toggle('hidden', !signedIn);
@@ -700,7 +703,17 @@ function wire() {
 
   $('btn-login')?.addEventListener('click',    () => openAuth('signin'));
   $('btn-logout')?.addEventListener('click',   async () => { try { await signOut(); } catch {} });
-  $('btn-set-name')?.addEventListener('click', openName);
+
+  // The shared guest name box (landing account bar). Persist to the one shared
+  // key so the name follows the player across every game; refill with a fresh
+  // Guest##### if they leave it empty so a room never gets a nameless seat.
+  const nameBox = $('landing-name-input');
+  if (nameBox) {
+    nameBox.addEventListener('input', () => { app.name = setGuestName(nameBox.value); });
+    nameBox.addEventListener('blur',  () => {
+      if (!nameBox.value.trim()) { app.name = getGuestName(); nameBox.value = app.name; }
+    });
+  }
 
   $('auth-close').addEventListener('click',      closeAuth);
   $('auth-tab-signin').addEventListener('click', () => { authStatus(''); setAuthMode('signin'); });

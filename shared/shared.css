@@ -270,6 +270,26 @@ button:disabled:hover {
 
 .account-actions { display: flex; gap: 8px; }
 
+/* Guest status + a prominent inline "Log in" link on the start screens. */
+.account-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.login-link {
+  font-size: 0.9rem; text-transform: none; letter-spacing: 0.01em; padding: 0;
+  color: var(--cyan); text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* The shared guest name box lives in the account bar on every game's landing,
+   so it renders identically across the table, word and quiz families. */
+#landing-name-input {
+  width: 100%; box-sizing: border-box; margin: 0 0 4px;
+  padding: 10px 12px; text-align: center;
+  border-radius: var(--ui-radius, 8px);
+  border: 2px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+  background: var(--dark, #12121a); color: var(--text);
+  font-family: var(--font-body); font-size: 16px;
+}
+#landing-name-input::placeholder { color: var(--muted); }
+#landing-name-input:focus { outline: none; border-color: var(--cyan); }
+
 /* ── animations ──────────────────────────────────────────────────────────── */
 
 @keyframes ov-fade { from { opacity: 0; } to { opacity: 1; } }

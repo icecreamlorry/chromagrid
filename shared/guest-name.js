@@ -9,8 +9,17 @@ const KEY = 'lbgames.name';
 
 export const GUEST_NAME_KEY = KEY;
 
+// The guest's display name. If they've never set one, mint a "Guest######"
+// (6 random digits, so it's relatively unique) and persist it, so it's stable
+// and shows up pre-filled in the name box — deliberately plain enough that most
+// people will want to change it, but always a real, non-empty name.
 export function getGuestName() {
-  return (localStorage.getItem(KEY) || '').trim();
+  let v = (localStorage.getItem(KEY) || '').trim();
+  if (!v) {
+    v = `Guest${Math.floor(100000 + Math.random() * 900000)}`;
+    try { localStorage.setItem(KEY, v); } catch { /* storage blocked — still return it */ }
+  }
+  return v;
 }
 
 // Trims + caps at 20 chars, stores it, and returns the stored value.
