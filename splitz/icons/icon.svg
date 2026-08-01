@@ -1,11 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#1c2733"/>
-  <!-- Crossword race: interlocking tiles forming a plus -->
-  <g>
-    <rect x="208" y="100" width="96" height="96" rx="16" fill="#f5b942"/>
-    <rect x="100" y="208" width="96" height="96" rx="16" fill="#f5b942"/>
-    <rect x="208" y="208" width="96" height="96" rx="16" fill="#2e8f6b"/>
-    <rect x="316" y="208" width="96" height="96" rx="16" fill="#f5b942"/>
-    <rect x="208" y="316" width="96" height="96" rx="16" fill="#f5b942"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1c2733" rx="104"/>
+  <rect width="96" height="96" x="208" y="100" fill="#f5b942" rx="16"/>
+  <rect width="96" height="96" x="100" y="208" fill="#f5b942" rx="16"/>
+  <rect width="96" height="96" x="208" y="208" fill="#2e8f6b" rx="16"/>
+  <rect width="96" height="96" x="316" y="208" fill="#f5b942" rx="16"/>
+  <rect width="96" height="96" x="208" y="316" fill="#f5b942" rx="16"/>
 </svg>
