@@ -241,6 +241,13 @@ dataset against the clock, solo or in a room" game:
   the lobby). See Weiqi's `saveSession`/`readSession`/`clearSession`.
 - Add each new game as a card in the root `index.html`, and give it engine tests
   under `<game>/test/*.mjs` (run with `node`).
+- **Icons: the source of truth is `<game>/icons/icon.svg`** (a rounded-square
+  512 viewBox, `rx="104"`, transparent corners — see any game for the house
+  style). The three PNGs (`apple-touch-icon.png` 180, `icon-192.png`,
+  `icon-512.png`) are RENDERED from it by `tools/render-icons.mjs` (headless
+  Chromium, `omitBackground`), so never hand-edit a PNG — edit the SVG and
+  re-run `node tools/render-icons.mjs`. A new game just adds its `icon.svg` to
+  the `GAMES` list there. The root `favicon.svg` is the shared LB Games logo.
 
 ## Git
 

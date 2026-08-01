@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-label="Draughts">
+  <defs><clipPath id="r"><rect width="512" height="512" rx="104"/></clipPath></defs>
+  <g clip-path="url(#r)">
+    <rect width="512" height="512" fill="#3a4a5c"/>
+    <g fill="#d6cdba">
+      <rect x="0" y="0" width="128" height="128"/>
+      <rect x="256" y="0" width="128" height="128"/>
+      <rect x="128" y="128" width="128" height="128"/>
+      <rect x="384" y="128" width="128" height="128"/>
+      <rect x="0" y="256" width="128" height="128"/>
+      <rect x="256" y="256" width="128" height="128"/>
+      <rect x="128" y="384" width="128" height="128"/>
+      <rect x="384" y="384" width="128" height="128"/>
+    </g>
+    <!-- crowned red king -->
+    <circle cx="256" cy="266" r="164" fill="#14181e" opacity="0.45"/>
+    <circle cx="256" cy="256" r="164" fill="#b22e2e"/>
+    <circle cx="256" cy="256" r="128" fill="none" stroke="#781a1a" stroke-width="15"/>
+    <circle cx="256" cy="256" r="82" fill="none" stroke="#f0c44e" stroke-width="23"/>
+    <circle cx="256" cy="256" r="26" fill="#f0c44e"/>
+  </g>
+</svg>
