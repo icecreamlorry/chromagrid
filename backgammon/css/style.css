@@ -30,9 +30,76 @@
 .bg-off.dark { fill: #2b3440; }
 
 .bg-die { fill: #f4f1e8; stroke: #cbb787; stroke-width: 0.04; }
-.bg-die.used { opacity: 0.4; }
 .bg-pip { fill: #1a1f26; }
 
-.bg-src { fill: rgba(88, 192, 255, 0.18); pointer-events: none; }
-.bg-sel { fill: rgba(88, 192, 255, 0.30); pointer-events: none; }
-.bg-tgt { fill: rgba(92, 191, 138, 0.42); pointer-events: none; }
+/* Dice states (see board.js drawDice). The group pivots on its own centre. */
+.bg-die-group { transform-box: fill-box; transform-origin: center; }
+.bg-die-group.used { opacity: 0.4; }
+.bg-die-group.idle { animation: bg-die-shake 0.95s ease-in-out infinite; }
+.bg-die-group.idle:nth-of-type(2) { animation-delay: 0.12s; }
+.bg-die-group.rolling { animation: bg-die-tumble 0.16s linear infinite; }
+.bg-die-group.rolling:nth-of-type(2) { animation-delay: 0.05s; }
+.bg-die-group.landed { animation: bg-die-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.bg-die-group.landed .bg-die { stroke: #7bffb4; stroke-width: 0.08; }
+/* Doubles: the pair splits into four — each die pops in, staggered, so it reads
+   as the two dice duplicating. Gold stroke marks the celebratory reveal. */
+.bg-die-group.dup { animation: bg-die-dup 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.bg-die-group.dup:nth-of-type(1) { animation-delay: 0s; }
+.bg-die-group.dup:nth-of-type(2) { animation-delay: 0.09s; }
+.bg-die-group.dup:nth-of-type(3) { animation-delay: 0.18s; }
+.bg-die-group.dup:nth-of-type(4) { animation-delay: 0.27s; }
+.bg-die-group.dup .bg-die { stroke: #f0c44e; stroke-width: 0.08; }
+@keyframes bg-die-dup {
+  0% { transform: scale(0.15); opacity: 0; }
+  60% { transform: scale(1.22); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.bg-doubles-label {
+  fill: #ffd873; stroke: rgba(0, 0, 0, 0.5); stroke-width: 0.045; paint-order: stroke;
+  font-size: 0.5px; font-weight: 800; letter-spacing: 0.05px;
+  transform-box: fill-box; transform-origin: center;
+  animation: bg-doubles-flash 0.5s ease-out both;
+}
+@keyframes bg-doubles-flash {
+  0% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes bg-die-shake {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-0.05px) rotate(5deg); }
+}
+@keyframes bg-die-tumble {
+  0% { transform: rotate(-9deg) scale(0.96); }
+  50% { transform: rotate(8deg) scale(1.04); }
+  100% { transform: rotate(-9deg) scale(0.96); }
+}
+@keyframes bg-die-pop {
+  0% { transform: scale(0.55); }
+  60% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+.bg-die-q { fill: #6b5836; font-size: 0.72px; font-weight: 800; }
+.bg-roll-label {
+  fill: #fff6df; stroke: rgba(0, 0, 0, 0.45); stroke-width: 0.04; paint-order: stroke;
+  font-size: 0.44px; font-weight: 800; letter-spacing: 0.04px;
+  animation: bg-roll-label-pulse 0.95s ease-in-out infinite;
+}
+@keyframes bg-roll-label-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+/* Selection + source hints (subtle washes under the checkers). */
+.bg-src { fill: rgba(88, 192, 255, 0.16); pointer-events: none; }
+.bg-sel { fill: rgba(88, 192, 255, 0.34); pointer-events: none; }
+.bg-sel-ring { fill: none; stroke: #7cc9ff; stroke-width: 0.07; stroke-linejoin: round; pointer-events: none; }
+
+/* Move targets — bold fill PLUS a bright pulsing outline over the checkers, so a
+   legal destination is unmistakable (even when it's an opponent's blot). */
+.bg-tgt { fill: rgba(74, 214, 128, 0.5); pointer-events: none; }
+.bg-tgt-ring {
+  fill: none; stroke: #9dffc6; stroke-width: 0.11; stroke-linejoin: round;
+  pointer-events: none; animation: bg-tgt-pulse 1s ease-in-out infinite;
+}
+@keyframes bg-tgt-pulse {
+  0%, 100% { stroke: #6dffab; opacity: 0.85; }
+  50% { stroke: #e0ffee; opacity: 1; }
+}

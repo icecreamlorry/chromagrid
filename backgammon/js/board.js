@@ -24,7 +24,7 @@ function el(name, attrs = {}) {
   return e;
 }
 
-export function createBoard(container, { onPoint } = {}) {
+export function createBoard(container, { onPoint, onRoll } = {}) {
   let flipped = false;
   let interactive = true;
   let view = { board: Array(24).fill(0), bar: [0, 0], off: [0, 0] };
@@ -63,7 +63,8 @@ export function createBoard(container, { onPoint } = {}) {
       svg.appendChild(el('path', { d: tri, class: `bg-point ${(i + (i <= 11 ? 0 : 1)) % 2 ? 'a' : 'b'}` }));
     }
 
-    // Highlights on source / target / selected points.
+    // Highlight FILLS on source / target / selected points, drawn UNDER the
+    // checkers so a tinted point reads as a wash behind the piece.
     const hi = view.highlights || {};
     for (const i of hi.sources || []) markPoint(i, 'bg-src');
     for (const t of hi.targets || []) {
@@ -85,6 +86,15 @@ export function createBoard(container, { onPoint } = {}) {
     if (view.bar[1]) stackCheckers(M + 6.5, M + 3.8, -1, view.bar[1], 1);
     // Borne-off checkers as stacked bars.
     drawOff(0); drawOff(1);
+
+    // Highlight OUTLINES on target / selected points, drawn OVER the checkers so
+    // the bright ring around a legal destination is never hidden by a blot.
+    for (const t of hi.targets || []) {
+      if (t === 'off') markOff('bg-tgt-ring');
+      else markPoint(t, 'bg-tgt-ring');
+    }
+    if (hi.selected === 'bar') markBar('bg-sel-ring');
+    else if (typeof hi.selected === 'number') markPoint(hi.selected, 'bg-sel-ring');
 
     // Dice for the side to move.
     drawDice();
@@ -125,20 +135,39 @@ export function createBoard(container, { onPoint } = {}) {
     }
   }
 
+  // Dice states: 'idle' (unrolled — prompt to tap), 'rolling' (tumbling faces),
+  // 'landed' (just settled — plays a one-shot pop), 'done' (settled/static).
   function drawDice() {
     const dice = view.dice || [];
     if (!dice.length) return;
+    const state = view.diceState || 'done';
     const n = dice.length; const s = 1.1, gap = 0.28;
     const totalW = n * s + (n - 1) * gap;
     const startX = M + 9.5 - totalW / 2;
     const y = M + 5 - s / 2;
     dice.forEach((d, i) => {
       const x = startX + i * (s + gap);
-      svg.appendChild(el('rect', { x, y, width: s, height: s, rx: 0.2, class: `bg-die ${d.used ? 'used' : ''}` }));
-      for (const [px, py] of pipPositions(d.value)) {
-        svg.appendChild(el('circle', { cx: x + px * s, cy: y + py * s, r: 0.1, class: 'bg-pip' }));
+      // Each die is its own group so the shake/pop transforms pivot on the die's
+      // own centre (transform-box: fill-box) and carry its pips along.
+      const g = el('g', { class: `bg-die-group ${state}${d.used ? ' used' : ''}` });
+      g.appendChild(el('rect', { x, y, width: s, height: s, rx: 0.2, class: 'bg-die' }));
+      if (state === 'idle' || d.value == null) {
+        const q = el('text', { x: x + s / 2, y: y + s / 2, class: 'bg-die-q', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+        q.textContent = '?'; g.appendChild(q);
+      } else {
+        for (const [px, py] of pipPositions(d.value)) {
+          g.appendChild(el('circle', { cx: x + px * s, cy: y + py * s, r: 0.1, class: 'bg-pip' }));
+        }
       }
+      svg.appendChild(g);
     });
+    if (state === 'idle') {
+      const label = el('text', { x: M + 9.5, y: y + s + 0.66, class: 'bg-roll-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+      label.textContent = 'TAP TO ROLL'; svg.appendChild(label);
+    } else if (state === 'dup') {
+      const label = el('text', { x: M + 9.5, y: y + s + 0.66, class: 'bg-doubles-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+      label.textContent = 'DOUBLES!'; svg.appendChild(label);
+    }
   }
 
   // ---- Hit testing ----------------------------------------------------------
@@ -165,6 +194,12 @@ export function createBoard(container, { onPoint } = {}) {
   svg.addEventListener('pointerup', (e) => {
     if (!interactive) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Before the dice are rolled the whole board is one big "roll" button, so
+    // tapping anywhere (not just the dice) rolls — forgiving on a phone. While
+    // the dice are tumbling, ignore taps entirely.
+    const ds = view.diceState;
+    if (ds === 'idle') { onRoll?.(); return; }
+    if (ds === 'rolling') return;
     const t = targetFromEvent(e);
     if (t != null) onPoint?.(t);
   });

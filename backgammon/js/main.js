@@ -34,6 +34,13 @@ const app = {
   selected: null,       // selected source: point index or 'bar'
   maxDice: 0,           // dice that must be played this turn
   turnInitFor: -1,      // turnIndex this turn was initialised for
+  rolled: false,        // have my dice been rolled/revealed this turn?
+  rolling: false,       // roll animation in progress
+  rollFaces: null,      // the two tumbling faces shown during the animation
+  justLanded: false,    // one render after settling → plays the "pop"
+  rolledPairOnly: false,// doubles: briefly show the landed PAIR before it splits to 4
+  dupLanded: false,     // doubles: the render that duplicates the pair into 4
+  rollTimer: null,      // pending animation frame timeout
   confirmMoves: true,
   oppOnline: false, connMode: 'db', pendingMoves: new Map(),
   timeKey: 'unlimited', turnAnchorMs: 0, finishPersisted: false,
@@ -208,7 +215,7 @@ async function enterRoom(code, playerIndex, name, room) {
   $('room-code-text').textContent = code;
   renderNotifyBtns(); refreshPushSub(); renderAll(); announceLastMove(); startClockTicker();
 }
-function ensureBoard() { if (goboard) return; goboard = createBoard($('board'), { onPoint }); }
+function ensureBoard() { if (goboard) return; goboard = createBoard($('board'), { onPoint, onRoll: startRoll }); }
 
 // ---- Notifications ----------------------------------------------------------
 
@@ -326,7 +333,7 @@ function announceLastMove() {
   else if (lm.type === 'start') setStatus(`Game on! ${playerName(lm.first)} rolls first.`);
   else if (lm.type === 'resign') setStatus(`${who} resigned — game over.`);
   else if (lm.type === 'timeout') setStatus(`${playerName(lm.player)} ran out of time — game over.`);
-  if (isMyTurn()) { const d = currentDice(app.state); if (d.length) setStatus(`You rolled ${d.join(' & ')} — make your move.`); }
+  if (isMyTurn()) { if (app.rolled) announceRolled(); else setStatus('Tap the dice to roll.'); }
 }
 
 // ---- Helpers ----------------------------------------------------------------
@@ -341,7 +348,7 @@ function setStatus(msg) { $('status-line').textContent = msg; }
 function syncTurn() {
   if (!app.state) return;
   if (isMyTurn()) { if (app.turnInitFor !== app.state.turnIndex) initTurn(); }
-  else { app.work = null; app.steps = []; app.selected = null; app.turnInitFor = -1; }
+  else { app.work = null; app.steps = []; app.selected = null; app.turnInitFor = -1; resetRoll(); }
 }
 function initTurn() {
   const seat = app.playerIndex;
@@ -350,7 +357,56 @@ function initTurn() {
   app.steps = []; app.selected = null;
   app.maxDice = maxDiceUsable(app.state.board, app.state.bar, app.state.off, seat, app.turnDice);
   app.turnInitFor = app.state.turnIndex;
+  resetRoll();                         // a fresh turn starts unrolled — tap to roll
   if (app.work.bar[seat] > 0) app.selected = 'bar';
+}
+function resetRoll() {
+  if (app.rollTimer) { clearTimeout(app.rollTimer); app.rollTimer = null; }
+  app.rolled = false; app.rolling = false; app.rollFaces = null;
+  app.justLanded = false; app.rolledPairOnly = false; app.dupLanded = false;
+}
+
+// The dice values are already known (seed-derived); the roll is a purely cosmetic
+// reveal. Show tumbling faces (Math.random is fine — never stored, never fed to
+// the engine), fast then slowing, then settle on the real pips with a pop.
+const rollFace = () => 1 + Math.floor(Math.random() * 6);
+function startRoll() {
+  if (!isMyTurn() || !app.work || app.rolled || app.rolling) return;
+  app.rolling = true;
+  const delays = [70, 70, 80, 95, 115, 140, 170, 210, 260]; // ease-out tumble ≈ 1.2s
+  let i = 0;
+  const step = () => {
+    app.rollFaces = [rollFace(), rollFace()];
+    renderBoard();
+    if (i < delays.length) { app.rollTimer = setTimeout(step, delays[i++]); }
+    else settleRoll();
+  };
+  step();
+}
+function settleRoll() {
+  app.rollTimer = null; app.rolling = false; app.rolled = true; app.rollFaces = null;
+  if (app.turnDice.length === 4) {
+    // Doubles: land as a PAIR first, then split that pair into four dice.
+    app.rolledPairOnly = true; app.justLanded = true;
+    renderBoard(); app.justLanded = false;
+    app.rollTimer = setTimeout(() => {
+      app.rollTimer = null; app.rolledPairOnly = false; app.dupLanded = true;
+      renderAll(); announceRolled();
+      app.dupLanded = false;
+    }, 430);
+  } else {
+    app.justLanded = true;               // this one render plays the landing pop
+    renderAll(); announceRolled();
+    app.justLanded = false;
+  }
+}
+function rolledFacesText() {
+  return app.turnDice.length === 4 ? `${app.turnDice[0]} & ${app.turnDice[0]} — doubles!` : app.turnDice.join(' & ');
+}
+function announceRolled() {
+  setStatus(app.maxDice === 0
+    ? `You rolled ${rolledFacesText()} — no legal moves, press Pass.`
+    : `You rolled ${rolledFacesText()} — make your move.`);
 }
 function rebuildWork() {
   const seat = app.playerIndex;
@@ -364,7 +420,7 @@ function rebuildWork() {
 function workSteps() { return legalStepList(app.work.board, app.work.bar, app.work.off, app.playerIndex, app.work.dice); }
 
 function onPoint(t) {
-  if (!isMyTurn() || !app.work) return;
+  if (!isMyTurn() || !app.work || !app.rolled || app.rolling || app.rolledPairOnly) return;
   const seat = app.playerIndex;
   const source = app.work.bar[seat] > 0 ? 'bar' : app.selected;
   if (source != null) {
@@ -452,11 +508,22 @@ function renderMyOnline() { const dot = $('my-online'); if (!dot) return; const 
 function diceView() {
   const s = app.state; if (!s.started || s.gameOver || s.turn == null) return [];
   if (!isMyTurn() || !app.work) return currentDice(s).map((v) => ({ value: v, used: false }));
+  if (app.rolling) return (app.rollFaces || [1, 1]).map((v) => ({ value: v, used: false }));
+  if (!app.rolled) return [{ value: null, used: false }, { value: null, used: false }]; // idle → two "?"
+  if (app.rolledPairOnly) { const v = app.turnDice[0]; return [{ value: v, used: false }, { value: v, used: false }]; }
   const remaining = app.work.dice.slice();
   return app.turnDice.map((v) => { const i = remaining.indexOf(v); if (i >= 0) { remaining.splice(i, 1); return { value: v, used: false }; } return { value: v, used: true }; });
 }
+function diceStateNow() {
+  if (!isMyTurn() || !app.work) return 'done';
+  if (app.rolling) return 'rolling';
+  if (!app.rolled) return 'idle';
+  if (app.dupLanded) return 'dup';
+  if (app.justLanded) return 'landed';
+  return 'done';
+}
 function highlights() {
-  if (!isMyTurn() || !app.work) return {};
+  if (!isMyTurn() || !app.work || !app.rolled || app.rolledPairOnly) return {};
   const seat = app.playerIndex;
   const steps = workSteps();
   const sel = app.work.bar[seat] > 0 ? 'bar' : app.selected;
@@ -468,7 +535,7 @@ function renderBoard() {
   const s = app.state;
   goboard.setInteractive(isMyTurn());
   const pos = (isMyTurn() && app.work) ? app.work : { board: s.board, bar: s.bar, off: s.off };
-  goboard.render({ board: pos.board, bar: pos.bar, off: pos.off, flipped: boardFlipped(), dice: diceView(), highlights: highlights() });
+  goboard.render({ board: pos.board, bar: pos.bar, off: pos.off, flipped: boardFlipped(), dice: diceView(), diceState: diceStateNow(), highlights: highlights() });
 }
 
 function sideGlyph(seat) { return `<span class="side-glyph ${colorOf(app.state, seat)}"></span>`; }
@@ -495,13 +562,16 @@ function renderControls() {
   const canAct = (app.room?.player_count ?? 0) >= 2 && app.state.started && !app.state.gameOver;
   $('btn-resign').classList.toggle('hidden', !canAct);
   const my = isMyTurn();
+  // Hide the turn controls until the dice have been rolled — before that the
+  // player shouldn't see "Pass"/move count (it would reveal the roll's outcome).
+  const acting = my && app.rolled && !app.rolledPairOnly;
   const done = $('btn-done'), undo = $('btn-undo');
-  done.classList.toggle('hidden', !my);
-  const complete = my && app.steps.length === app.maxDice;
+  done.classList.toggle('hidden', !acting);
+  const complete = acting && app.steps.length === app.maxDice;
   done.disabled = !complete;
   done.textContent = app.maxDice === 0 ? 'Pass' : 'Done';
-  undo.classList.toggle('hidden', !(my && app.steps.length));
-  if (my && app.maxDice === 0) setStatusOnce('No legal moves — press Pass.');
+  undo.classList.toggle('hidden', !(acting && app.steps.length));
+  if (acting && app.maxDice === 0) setStatusOnce('No legal moves — press Pass.');
 }
 let lastAutoStatus = '';
 function setStatusOnce(msg) { if (lastAutoStatus !== msg) { lastAutoStatus = msg; setStatus(msg); } }
