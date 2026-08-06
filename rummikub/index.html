@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rummikub</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1c2733">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rummikub">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="../shared/table-game.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.LB_CONFIG = { gameSlug: 'rummikub', gameName: 'Rummikub', history: true, daily: false, defaultTheme: 'maritime' };
+  </script>
+  <script src="../shared/theme-boot.js"></script>
+</head>
+<body>
+  <script src="../shared/boot.js"></script>
+
+  <!-- Landing -->
+  <section id="screen-landing" class="screen">
+    <div class="landing-card">
+      <h1 class="logo">Rummikub</h1>
+      <p class="tagline">Runs, groups and jokers — race to empty your rack, with 2–4 friends, live or over days.</p>
+      <div class="landing-buttons">
+        <button id="btn-create" class="btn-primary">New Game</button>
+        <button id="btn-join" class="btn-ghost">Join a Room</button>
+      </div>
+      <div id="join-box" class="join-box hidden">
+        <input id="code-input" type="text" maxlength="6" placeholder="Room code" autocomplete="off">
+        <button id="btn-join-go" class="btn-primary">Join</button>
+      </div>
+      <p id="landing-error" class="error-text"></p>
+      <div id="account-bar"></div>
+    </div>
+  </section>
+
+  <!-- Lobby -->
+  <section id="screen-lobby" class="screen hidden"></section>
+
+  <!-- Game -->
+  <section id="screen-game" class="screen hidden">
+    <header class="game-header">
+      <span class="logo logo-small">Rummikub</span>
+      <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
+      <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Leave this game">Resign</button>
+      <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="table">
+      <!-- Every player: name, tiles left, clock, whose turn -->
+      <div id="players" class="rk-players"></div>
+
+      <div class="board-wrap rk-play">
+        <!-- The shared table of runs and groups -->
+        <div id="table-area" class="rk-table" aria-label="Table"></div>
+
+        <!-- The tile you've picked up (tap a destination to place it) -->
+        <div id="held-area" class="rk-held hidden"></div>
+
+        <p id="status-line" class="status-line"></p>
+
+        <!-- Your rack -->
+        <div class="rk-rack-wrap">
+          <div id="rack" class="rk-rack" aria-label="Your tiles"></div>
+        </div>
+
+        <div class="controls rk-controls">
+          <button id="btn-play" class="btn-primary hidden">Play</button>
+          <button id="btn-reset" class="btn-ghost hidden">Reset</button>
+          <button id="btn-draw" class="btn-primary hidden">Draw a tile</button>
+          <button id="btn-sort" class="btn-ghost" title="Sort your tiles">Sort ⇄</button>
+        </div>
+
+        <div id="start-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="start-title">Ready to play?</h2>
+            <p id="start-time" class="start-time"></p>
+            <div id="start-players" class="rk-start-players"></div>
+            <p id="start-share" class="hidden">Share the code <strong id="start-code"></strong> — up to four can join.</p>
+            <button id="btn-start" class="btn-primary hidden">Start Game</button>
+            <p id="start-waiting" class="muted hidden">Waiting for the host to start the game…</p>
+          </div>
+        </div>
+
+        <div id="gameover-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="gameover-title"></h2>
+            <div id="gameover-detail"></div>
+            <button id="btn-rematch" class="btn-primary">Rematch</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- New-game setup: time per move -->
+  <div id="modal-setup" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2>New game</h2></div>
+      <p id="setup-subtitle" class="muted">How long does each player get per move?</p>
+      <div id="setup-times" class="setup-times">
+        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer — play over days</span></button>
+        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Relaxed correspondence</span></button>
+        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>A move or two a day</span></button>
+        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Same-evening games</span></button>
+        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual, sit-down pace</span></button>
+        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast and sharp</span></button>
+      </div>
+      <div class="confirm-buttons">
+        <button id="setup-cancel" class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation dialog -->
+  <div id="modal-confirm" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2 id="rk-confirm-title">Are you sure?</h2></div>
+      <p id="rk-confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="rk-confirm-cancel" class="btn-ghost">Cancel</button>
+        <button id="rk-confirm-ok" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-card modal-help-card">
+      <div class="modal-head"><h2>How to play</h2><button id="help-close" class="modal-close">&times;</button></div>
+      <div class="help-body">
+        <section class="help-section"><h3>The idea</h3>
+          <p>Rummikub uses 106 tiles — numbers 1–13 in four colours (two of each) plus two jokers. You start with 14 on your rack, hidden from everyone else. Be the first to play every tile from your rack to win.</p></section>
+        <section class="help-section"><h3>Sets: runs &amp; groups</h3>
+          <p>Everything on the table must be a valid <strong>set</strong>. A <strong>run</strong> is 3+ consecutive numbers in one colour (5-6-7 red). A <strong>group</strong> is 3 or 4 tiles of the same number in different colours. A <strong>joker</strong> stands in for any tile.</p></section>
+        <section class="help-section"><h3>Your opening meld</h3>
+          <p>Your <strong>first</strong> play must be sets worth <strong>30 or more</strong>, made only from your own tiles (a joker counts as the tile it represents). Until then you can't touch the tiles already on the table.</p></section>
+        <section class="help-section"><h3>After you've melded</h3>
+          <p>On later turns you may add to and rearrange <strong>any</strong> sets on the table however you like — as long as you play at least one tile from your rack and every set is still valid when you press <strong>Play</strong>. Sets highlight green when valid, red when not.</p></section>
+        <section class="help-section"><h3>Can't play? Draw.</h3>
+          <p>If you don't want to (or can't) play, press <strong>Draw a tile</strong> to take one from the pool and end your turn. When the pool is empty you pass instead; a full round of passes ends the game, and the fewest points left in hand wins.</p></section>
+        <section class="help-section"><h3>Per-move timer</h3>
+          <p>The host picks how long each player gets <strong>per move</strong> — 1 minute to 3 days, or <strong>Unlimited</strong>. Run out and you're out of the game; the others play on.</p></section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/lobby-ui.js"></script>
+  <script type="module" src="../shared/account-ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="../shared/devtools.js"></script>
+</body>
+</html>

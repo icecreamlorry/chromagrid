@@ -1,7 +1,7 @@
 # LB Games — working notes for Claude
 
 A family of vanilla-JS web games (Chromagrid, Wurdz, Scramblr, Splitz, Lexicorp,
-Atlaz, Flagz, Atomyx, Buffz, Weiqi, Chess, Draughts, Backgammon) sharing one Supabase rooms/accounts/push
+Atlaz, Flagz, Atomyx, Buffz, Weiqi, Chess, Draughts, Backgammon, Rummikub) sharing one Supabase rooms/accounts/push
 layer under `shared/`. No build step — static HTML + ES modules, served straight
 from GitHub Pages (`icecreamlorry.github.io/lb-games`). Each game lives in its
 own folder with `index.html`, `js/`, `css/style.css`, `sw.js`, `manifest`.

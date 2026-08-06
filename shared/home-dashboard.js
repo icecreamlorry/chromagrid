@@ -41,6 +41,7 @@ const ROOM_GAMES = [
   { slug: 'chess', name: 'Chess', href: 'chess/', kind: 'replay' },
   { slug: 'draughts', name: 'Draughts', href: 'draughts/', kind: 'replay' },
   { slug: 'backgammon', name: 'Backgammon', href: 'backgammon/', kind: 'replay' },
+  { slug: 'rummikub', name: 'Rummikub', href: 'rummikub/', kind: 'replay' },
 ];
 
 const DAILY_GAMES = [

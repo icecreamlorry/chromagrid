@@ -1,0 +1,114 @@
+/* Rummikub board rendering only — the table (sets), the rack, tiles and the
+   players strip. Layout, panels, overlays, modals, theme colours and body font
+   all come from shared/shared.css + shared/table-game.css. */
+
+:root {
+  --rk-tile-w: 40px;
+  --rk-tile-h: 54px;
+  --rk-face: #f5edd9;      /* the cream tile face — fixed, legible on any theme */
+  --rk-face-edge: #d8c9a0;
+  --rk-face-line: #c9b98f;
+}
+@media (max-width: 560px) { :root { --rk-tile-w: 32px; --rk-tile-h: 44px; } }
+
+/* ---- Players strip ---- */
+.rk-players {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+  padding: 4px 2px 2px;
+}
+.rk-player {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel); border-radius: var(--item-radius);
+  padding: 6px 12px; border: 2px solid transparent;
+  font-size: 0.92rem;
+}
+.rk-player.is-turn { border-color: var(--cyan); box-shadow: 0 0 10px rgba(88, 192, 255, 0.35); }
+.rk-player.is-me .rk-p-name { font-weight: 800; }
+.rk-player.is-out { opacity: 0.5; }
+.rk-p-name { display: flex; align-items: center; gap: 6px; }
+.rk-p-name .nm { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-p-tiles {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-weight: 800; color: var(--text);
+}
+.rk-p-tiles svg { opacity: 0.7; }
+.rk-p-out-tag { font-size: 0.72rem; color: var(--bad); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ---- The table (shared sets) ---- */
+.rk-play { display: flex; flex-direction: column; gap: 10px; }
+.rk-table {
+  background: var(--panel); border-radius: var(--panel-radius);
+  padding: 12px; min-height: 130px;
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px;
+  max-height: min(46vh, 420px); overflow: auto;
+}
+.rk-table.is-empty { align-items: center; justify-content: center; color: var(--muted); }
+.rk-empty-hint { font-size: 0.95rem; }
+
+.rk-set {
+  display: inline-flex; gap: 3px; padding: 6px; border-radius: 10px;
+  border: 2px solid var(--rk-face-line); background: rgba(0, 0, 0, 0.14);
+}
+.rk-set.valid { border-color: var(--good); box-shadow: 0 0 8px rgba(76, 209, 126, 0.35); }
+.rk-set.invalid { border-color: var(--bad); box-shadow: 0 0 8px rgba(233, 90, 78, 0.4); }
+.rk-set.drop-ok { border-color: var(--cyan); background: rgba(88, 192, 255, 0.16); }
+
+.rk-newset {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--rk-tile-w); padding: 6px 12px; border-radius: 10px;
+  border: 2px dashed var(--muted); color: var(--muted);
+  font-weight: 700; cursor: pointer; align-self: stretch;
+}
+.rk-newset.drop-ok { border-color: var(--cyan); color: var(--cyan); background: rgba(88, 192, 255, 0.14); }
+
+/* ---- Tiles ---- */
+.rk-tile {
+  position: relative; flex: 0 0 auto;
+  width: var(--rk-tile-w); height: var(--rk-tile-h);
+  border-radius: 7px; background: var(--rk-face);
+  box-shadow: inset 0 -3px 0 var(--rk-face-edge), 0 1px 2px rgba(0, 0, 0, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: calc(var(--rk-tile-h) * 0.5); line-height: 1;
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.rk-tile.c-k { color: #2b3440; }
+.rk-tile.c-r { color: #d1453b; }
+.rk-tile.c-b { color: #2f6bc4; }
+.rk-tile.c-o { color: #e08a2c; }
+.rk-tile.c-j { color: #d1453b; }               /* joker smiley */
+.rk-tile.held { visibility: hidden; }           /* it's floating in the held-chip */
+.rk-tile.selected { outline: 3px solid var(--cyan); outline-offset: 1px; }
+.rk-table .rk-tile { cursor: pointer; }
+.rk-tile[data-static="1"] { cursor: default; }
+
+/* ---- Held tile (the tile you've picked up) ---- */
+.rk-held {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px; border-radius: var(--item-radius);
+  background: rgba(88, 192, 255, 0.14); border: 1px dashed var(--cyan);
+}
+.rk-held .rk-tile { animation: rk-bob 0.9s ease-in-out infinite; cursor: default; }
+.rk-held-text { color: var(--text); font-size: 0.9rem; }
+@keyframes rk-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* ---- Rack ---- */
+.rk-rack-wrap { display: flex; justify-content: center; }
+.rk-rack {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
+  background: var(--panel); border-radius: var(--item-radius);
+  padding: 10px; min-height: calc(var(--rk-tile-h) + 20px); width: 100%;
+  border: 2px solid transparent;
+}
+.rk-rack.drop-ok { border-color: var(--cyan); background: rgba(88, 192, 255, 0.10); }
+.rk-rack .rk-tile:hover { transform: translateY(-3px); }
+
+.rk-controls { flex-wrap: wrap; }
+
+/* ---- Start overlay: who's joined ---- */
+.rk-start-players { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 4px; }
+.rk-start-player {
+  background: rgba(0, 0, 0, 0.18); border-radius: 999px; padding: 4px 12px;
+  font-weight: 700; font-size: 0.9rem;
+}
+.rk-start-player.me { background: var(--cyan); color: #06222f; }

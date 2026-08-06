@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GAMES = [
   'chromagrid', 'wurdz', 'scramblr', 'splitz', 'lexicorp', 'atlaz', 'flagz',
-  'atomyx', 'buffz', 'chess', 'weiqi', 'draughts', 'backgammon',
+  'atomyx', 'buffz', 'chess', 'weiqi', 'draughts', 'backgammon', 'rummikub',
 ];
 const SIZES = [['apple-touch-icon.png', 180], ['icon-192.png', 192], ['icon-512.png', 512]];
 
