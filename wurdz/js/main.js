@@ -1056,6 +1056,10 @@ function startRackDrag(e, idx) {
   const tileEl = e.currentTarget;
   const startX = e.clientX, startY = e.clientY;
   const letter = myRack()[idx];
+  // How far the floating tile rides ABOVE the finger (px) so the finger doesn't
+  // hide it — a big lift on touch, a small one for a mouse cursor (mirrors the
+  // Chess board's drag lift).
+  const LIFT = e.pointerType === 'touch' ? 48 : 6;
   // Reordering would shift the indices that pending tiles point at, so only
   // allow it when nothing is staged on the board.
   const canReorder = app.pending.length === 0;
@@ -1095,11 +1099,19 @@ function startRackDrag(e, idx) {
     document.querySelectorAll('.cell.drop-target').forEach((c) => c.classList.remove('drop-target'));
   };
 
-  const updateFeedback = (x, y) => {
-    const el = document.elementFromPoint(x, y);
+  // The board cell under the floating tile's CENTRE (finger − LIFT), so the drop
+  // registers where the tile is SEEN, not under the finger. Rack reordering
+  // keeps using the finger point (the tile rides along the rack row).
+  const boardCellAt = (fx, fy) => {
+    const el = document.elementFromPoint(fx, fy - LIFT);
     const cell = el && el.closest('.cell');
+    return (cell && cell.dataset.r !== undefined) ? cell : null;
+  };
+
+  const updateFeedback = (fx, fy) => {
     clearCellHighlight();
-    if (cell && cell.dataset.r !== undefined && isMyTurn()) {
+    const cell = boardCellAt(fx, fy);
+    if (cell && isMyTurn()) {
       const r = +cell.dataset.r, c = +cell.dataset.c;
       if (!app.state.board[r][c] && !app.pending.some((p) => p.r === r && p.c === c)) {
         cell.classList.add('drop-target');
@@ -1107,7 +1119,8 @@ function startRackDrag(e, idx) {
       hideGap();
       return;
     }
-    if (canReorder && el && el.closest('#rack')) showGap(insAt(x));
+    const rackEl = document.elementFromPoint(fx, fy);
+    if (canReorder && rackEl && rackEl.closest('#rack')) showGap(insAt(fx));
     else hideGap();
   };
 
@@ -1126,7 +1139,7 @@ function startRackDrag(e, idx) {
       rackDragCleanup = teardown;
     }
     ghost.style.left = `${ev.clientX}px`;
-    ghost.style.top = `${ev.clientY}px`;
+    ghost.style.top = `${ev.clientY - LIFT}px`;   // float above the finger
     updateFeedback(ev.clientX, ev.clientY);
   };
 
@@ -1144,9 +1157,11 @@ function startRackDrag(e, idx) {
 
   const onUp = (ev) => {
     const wasActive = active;
-    const x = ev.clientX, y = ev.clientY;
+    const fx = ev.clientX, fy = ev.clientY;
     const dropIdx = gapIdx;
-    const el = wasActive ? document.elementFromPoint(x, y) : null;
+    // Board target = under the lifted tile; rack target = under the finger.
+    const cell = wasActive ? boardCellAt(fx, fy) : null;
+    const rackEl = wasActive ? document.elementFromPoint(fx, fy) : null;
     teardown();
     if (!wasActive) return; // it was a tap → let the click handler run
 
@@ -1154,12 +1169,11 @@ function startRackDrag(e, idx) {
     suppressNextClick = true;
     setTimeout(() => { suppressNextClick = false; }, 350);
 
-    const cell = el && el.closest('.cell');
-    if (cell && cell.dataset.r !== undefined && isMyTurn()) {
+    if (cell && isMyTurn()) {
       placeTileFromRack(idx, +cell.dataset.r, +cell.dataset.c);
       return;
     }
-    if (canReorder && dropIdx !== null && el && el.closest('#rack')) {
+    if (canReorder && dropIdx !== null && rackEl && rackEl.closest('#rack')) {
       const rack = myRack();
       const [tile] = rack.splice(idx, 1); // `others` indexing equals rack-without-dragged
       rack.splice(Math.max(0, Math.min(dropIdx, rack.length)), 0, tile);
