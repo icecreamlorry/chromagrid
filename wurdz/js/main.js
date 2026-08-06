@@ -1102,10 +1102,25 @@ function startRackDrag(e, idx) {
   // The board cell under the floating tile's CENTRE (finger − LIFT), so the drop
   // registers where the tile is SEEN, not under the finger. Rack reordering
   // keeps using the finger point (the tile rides along the rack row).
+  //
+  // Mapped GEOMETRICALLY from the board rect (not elementFromPoint): the grid
+  // draws 2px lines + a 4px border between cells, and a point landing on one of
+  // those lines returns the board itself, not a cell — a dead zone. Slicing the
+  // inner square into 15×15 makes the whole board one contiguous drop area, so
+  // the selection has no gaps even though the cells have visible borders.
+  const boardEl = $('board');
+  const BOARD_BORDER = 4; // .board border width (px)
   const boardCellAt = (fx, fy) => {
-    const el = document.elementFromPoint(fx, fy - LIFT);
-    const cell = el && el.closest('.cell');
-    return (cell && cell.dataset.r !== undefined) ? cell : null;
+    const rect = boardEl.getBoundingClientRect();
+    if (!rect.width) return null;
+    const inner = rect.width - BOARD_BORDER * 2;
+    const x = fx - rect.left - BOARD_BORDER;
+    const y = (fy - LIFT) - rect.top - BOARD_BORDER;
+    if (x < 0 || y < 0 || x >= inner || y >= inner) return null;
+    const step = inner / BOARD_SIZE;
+    const c = Math.min(BOARD_SIZE - 1, Math.floor(x / step));
+    const r = Math.min(BOARD_SIZE - 1, Math.floor(y / step));
+    return boardEl.children[r * BOARD_SIZE + c] || null;
   };
 
   const updateFeedback = (fx, fy) => {
