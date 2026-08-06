@@ -206,6 +206,16 @@ const play = (s, table, played, player = s.turn) =>
   try { applyMove(s, { move_index: 99, player: 0, type: 'draw', payload: {} }); } catch { threw = true; }
   ok(threw, 'out-of-order move rejected');
 }
+{
+  // A play/draw/pass logged for the wrong seat is rejected on replay (guards the
+  // move log even though the UI already gates by turn + the DB index lock).
+  const s = started(2, 3); const notTurn = (s.turn + 1) % 3;
+  let drew = false, passed = false, played = false;
+  try { applyMove(s, { move_index: s.moveCount, player: notTurn, type: 'draw', payload: {} }); } catch { drew = true; }
+  try { applyMove(s, { move_index: s.moveCount, player: notTurn, type: 'pass', payload: {} }); } catch { passed = true; }
+  try { applyMove(s, { move_index: s.moveCount, player: notTurn, type: 'play', payload: { table: [], played: ['r1'] } }); } catch { played = true; }
+  ok(drew && passed && played, 'out-of-turn draw/pass/play rejected');
+}
 
 // ---- Determinism of a full game ---------------------------------------------
 {

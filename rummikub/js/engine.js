@@ -311,6 +311,7 @@ export function applyMove(state, move) {
       break;
     }
     case 'play': {
+      if (player !== state.turn) throw new Error('Move played out of turn in log');
       const { table: newTable, played } = payload;
       const result = validatePlay(state, player, newTable, played);
       if (!result.ok) throw new Error(`Invalid play in move log: ${result.error}`);
@@ -324,6 +325,7 @@ export function applyMove(state, move) {
       break;
     }
     case 'draw': {
+      if (player !== state.turn) throw new Error('Move played out of turn in log');
       if (!state.pool.length) throw new Error('Cannot draw from an empty pool');
       state.racks[player].push(state.pool.shift());
       state.passes = 0;
@@ -332,6 +334,7 @@ export function applyMove(state, move) {
       break;
     }
     case 'pass': {
+      if (player !== state.turn) throw new Error('Move played out of turn in log');
       // Only reachable once the pool is empty and a player has no legal play.
       state.passes += 1;
       state.lastMove = { type: 'pass', player };
