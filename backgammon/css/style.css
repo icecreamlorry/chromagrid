@@ -31,6 +31,18 @@
 
 .bg-die { fill: #f4f1e8; stroke: #cbb787; stroke-width: 0.04; }
 .bg-pip { fill: #1a1f26; }
+/* Dark dice for the side playing the dark checkers, so the dice always match
+   (and belong to) the player who rolled them. */
+.bg-die-group.dark .bg-die { fill: #2b3440; stroke: #10151b; }
+.bg-die-group.dark .bg-pip { fill: #eef1f4; }
+.bg-die-group.dark .bg-die-q { fill: #c7d0da; }
+
+/* The player to move gets a highlighted panel — another cue, beside the dice
+   side/colour and the "your/their turn" pill, for whose turn it is. */
+.player-panel.active-turn {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 12px rgba(88, 192, 255, 0.35);
+}
 
 /* Dice states (see board.js drawDice). The group pivots on its own centre. */
 .bg-die-group { transform-box: fill-box; transform-origin: center; }

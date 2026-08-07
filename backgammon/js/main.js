@@ -34,7 +34,8 @@ const app = {
   selected: null,       // selected source: point index or 'bar'
   maxDice: 0,           // dice that must be played this turn
   turnInitFor: -1,      // turnIndex this turn was initialised for
-  rolled: false,        // have my dice been rolled/revealed this turn?
+  oppInitFor: -1,       // turnIndex the opponent's auto-roll was played for
+  rolled: false,        // have the dice been rolled/revealed this turn?
   rolling: false,       // roll animation in progress
   rollFaces: null,      // the two tumbling faces shown during the animation
   justLanded: false,    // one render after settling → plays the "pop"
@@ -333,7 +334,7 @@ function announceLastMove() {
   else if (lm.type === 'start') setStatus(`Game on! ${playerName(lm.first)} rolls first.`);
   else if (lm.type === 'resign') setStatus(`${who} resigned — game over.`);
   else if (lm.type === 'timeout') setStatus(`${playerName(lm.player)} ran out of time — game over.`);
-  if (isMyTurn()) { if (app.rolled) announceRolled(); else setStatus('Tap the dice to roll.'); }
+  if (isMyTurn()) { if (app.rolled) announceRoll(); else setStatus('Tap the dice to roll.'); }
 }
 
 // ---- Helpers ----------------------------------------------------------------
@@ -347,8 +348,24 @@ function setStatus(msg) { $('status-line').textContent = msg; }
 
 function syncTurn() {
   if (!app.state) return;
-  if (isMyTurn()) { if (app.turnInitFor !== app.state.turnIndex) initTurn(); }
-  else { app.work = null; app.steps = []; app.selected = null; app.turnInitFor = -1; resetRoll(); }
+  const s = app.state;
+  if (isMyTurn()) {
+    if (app.turnInitFor !== s.turnIndex) initTurn();
+    app.oppInitFor = -1;
+  } else {
+    app.work = null; app.steps = []; app.selected = null; app.turnInitFor = -1;
+    // The opponent's dice roll themselves (on their side of the board) the moment
+    // it becomes their turn — once per turn.
+    if (s.started && !s.gameOver && s.turn != null) {
+      if (app.oppInitFor !== s.turnIndex) initOppTurn();
+    } else { resetRoll(); app.oppInitFor = -1; }
+  }
+}
+function initOppTurn() {
+  app.oppInitFor = app.state.turnIndex;
+  app.turnDice = currentDice(app.state).slice();
+  resetRoll();
+  beginTumble(settleRoll);          // auto-roll for the opponent (no tap)
 }
 function initTurn() {
   const seat = app.playerIndex;
@@ -370,8 +387,8 @@ function resetRoll() {
 // reveal. Show tumbling faces (Math.random is fine — never stored, never fed to
 // the engine), fast then slowing, then settle on the real pips with a pop.
 const rollFace = () => 1 + Math.floor(Math.random() * 6);
-function startRoll() {
-  if (!isMyTurn() || !app.work || app.rolled || app.rolling) return;
+// Shared tumble used for BOTH players' dice: fast then slowing, then `onSettle`.
+function beginTumble(onSettle) {
   app.rolling = true;
   const delays = [70, 70, 80, 95, 115, 140, 170, 210, 260]; // ease-out tumble ≈ 1.2s
   let i = 0;
@@ -379,9 +396,13 @@ function startRoll() {
     app.rollFaces = [rollFace(), rollFace()];
     renderBoard();
     if (i < delays.length) { app.rollTimer = setTimeout(step, delays[i++]); }
-    else settleRoll();
+    else onSettle();
   };
   step();
+}
+function startRoll() {                 // my turn, triggered by tapping the idle dice
+  if (!isMyTurn() || !app.work || app.rolled || app.rolling) return;
+  beginTumble(settleRoll);
 }
 function settleRoll() {
   app.rollTimer = null; app.rolling = false; app.rolled = true; app.rollFaces = null;
@@ -391,22 +412,27 @@ function settleRoll() {
     renderBoard(); app.justLanded = false;
     app.rollTimer = setTimeout(() => {
       app.rollTimer = null; app.rolledPairOnly = false; app.dupLanded = true;
-      renderAll(); announceRolled();
+      renderAll(); announceRoll();
       app.dupLanded = false;
     }, 430);
   } else {
     app.justLanded = true;               // this one render plays the landing pop
-    renderAll(); announceRolled();
+    renderAll(); announceRoll();
     app.justLanded = false;
   }
 }
 function rolledFacesText() {
   return app.turnDice.length === 4 ? `${app.turnDice[0]} & ${app.turnDice[0]} — doubles!` : app.turnDice.join(' & ');
 }
-function announceRolled() {
-  setStatus(app.maxDice === 0
-    ? `You rolled ${rolledFacesText()} — no legal moves, press Pass.`
-    : `You rolled ${rolledFacesText()} — make your move.`);
+// Status after a roll settles — worded for whoever just rolled.
+function announceRoll() {
+  if (isMyTurn()) {
+    setStatus(app.maxDice === 0
+      ? `You rolled ${rolledFacesText()} — no legal moves, press Pass.`
+      : `You rolled ${rolledFacesText()} — make your move.`);
+  } else {
+    setStatus(`${playerName(app.state.turn)} rolled ${rolledFacesText()}.`);
+  }
 }
 function rebuildWork() {
   const seat = app.playerIndex;
@@ -507,19 +533,21 @@ function renderMyOnline() { const dot = $('my-online'); if (!dot) return; const 
 
 function diceView() {
   const s = app.state; if (!s.started || s.gameOver || s.turn == null) return [];
-  if (!isMyTurn() || !app.work) return currentDice(s).map((v) => ({ value: v, used: false }));
   if (app.rolling) return (app.rollFaces || [1, 1]).map((v) => ({ value: v, used: false }));
-  if (!app.rolled) return [{ value: null, used: false }, { value: null, used: false }]; // idle → two "?"
   if (app.rolledPairOnly) { const v = app.turnDice[0]; return [{ value: v, used: false }, { value: v, used: false }]; }
-  const remaining = app.work.dice.slice();
-  return app.turnDice.map((v) => { const i = remaining.indexOf(v); if (i >= 0) { remaining.splice(i, 1); return { value: v, used: false }; } return { value: v, used: true }; });
+  if (isMyTurn() && app.work) {
+    if (!app.rolled) return [{ value: null, used: false }, { value: null, used: false }]; // idle → two "?"
+    const remaining = app.work.dice.slice();
+    return app.turnDice.map((v) => { const i = remaining.indexOf(v); if (i >= 0) { remaining.splice(i, 1); return { value: v, used: false }; } return { value: v, used: true }; });
+  }
+  // The opponent's dice (their full roll, shown on their side).
+  return currentDice(s).map((v) => ({ value: v, used: false }));
 }
 function diceStateNow() {
-  if (!isMyTurn() || !app.work) return 'done';
   if (app.rolling) return 'rolling';
-  if (!app.rolled) return 'idle';
   if (app.dupLanded) return 'dup';
   if (app.justLanded) return 'landed';
+  if (isMyTurn() && app.work && !app.rolled) return 'idle';
   return 'done';
 }
 function highlights() {
@@ -535,7 +563,14 @@ function renderBoard() {
   const s = app.state;
   goboard.setInteractive(isMyTurn());
   const pos = (isMyTurn() && app.work) ? app.work : { board: s.board, bar: s.bar, off: s.off };
-  goboard.render({ board: pos.board, bar: pos.bar, off: pos.off, flipped: boardFlipped(), dice: diceView(), diceState: diceStateNow(), highlights: highlights() });
+  // Dice sit on the roller's side of the board and take the roller's checker
+  // colour, so it's unmistakable whose dice they are.
+  const diceSide = isMyTurn() ? 'me' : 'opp';
+  const diceColor = (s.started && s.turn != null) ? colorOf(s, s.turn) : 'w';
+  goboard.render({
+    board: pos.board, bar: pos.bar, off: pos.off, flipped: boardFlipped(),
+    dice: diceView(), diceState: diceStateNow(), diceSide, diceColor, highlights: highlights(),
+  });
 }
 
 function sideGlyph(seat) { return `<span class="side-glyph ${colorOf(app.state, seat)}"></span>`; }
@@ -549,13 +584,16 @@ function renderOppPanel() {
   const nm = hasOpp ? `${sideGlyph(oppIdx)}<span class="nm">${esc(playerName(oppIdx))}</span>` : '<span class="nm">Waiting for opponent…</span>';
   nameEl.innerHTML = (hasOpp && seatLeft(app.room, oppIdx) && !app.state.gameOver) ? `${nm} <span class="left-tag">offline</span>` : nm;
   renderMaterial($('opp-material'), oppIdx);
-  $('opp-turn').classList.toggle('hidden', !(app.state.started && !app.state.gameOver && app.state.turn === oppIdx));
+  const oppTurn = app.state.started && !app.state.gameOver && app.state.turn === oppIdx;
+  $('opp-turn').classList.toggle('hidden', !oppTurn);
+  $('opp-panel')?.classList.toggle('active-turn', oppTurn);
   const dot = $('opp-online'); dot.className = `online-dot ${app.oppOnline ? 'online' : 'offline'}`; dot.title = app.oppOnline ? 'online' : 'offline';
 }
 function renderMyPanel() {
   $('my-name').innerHTML = `${sideGlyph(app.playerIndex)}<span class="nm">${esc(app.name)} (you)</span>`;
   renderMaterial($('my-material'), app.playerIndex);
   $('my-turn').classList.toggle('hidden', !isMyTurn());
+  $('my-name').closest('.player-panel')?.classList.toggle('active-turn', isMyTurn());
   renderMyOnline();
 }
 function renderControls() {

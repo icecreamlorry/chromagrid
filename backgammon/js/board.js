@@ -141,15 +141,19 @@ export function createBoard(container, { onPoint, onRoll } = {}) {
     const dice = view.dice || [];
     if (!dice.length) return;
     const state = view.diceState || 'done';
+    // The dice sit in the roller's half — mine on the right, the opponent's on
+    // the left — and take the roller's checker colour (light/dark).
+    const centerX = view.diceSide === 'opp' ? M + 3.5 : M + 9.5;
+    const colorCls = view.diceColor === 'b' ? 'dark' : 'light';
     const n = dice.length; const s = 1.1, gap = 0.28;
     const totalW = n * s + (n - 1) * gap;
-    const startX = M + 9.5 - totalW / 2;
+    const startX = centerX - totalW / 2;
     const y = M + 5 - s / 2;
     dice.forEach((d, i) => {
       const x = startX + i * (s + gap);
       // Each die is its own group so the shake/pop transforms pivot on the die's
       // own centre (transform-box: fill-box) and carry its pips along.
-      const g = el('g', { class: `bg-die-group ${state}${d.used ? ' used' : ''}` });
+      const g = el('g', { class: `bg-die-group ${state} ${colorCls}${d.used ? ' used' : ''}` });
       g.appendChild(el('rect', { x, y, width: s, height: s, rx: 0.2, class: 'bg-die' }));
       if (state === 'idle' || d.value == null) {
         const q = el('text', { x: x + s / 2, y: y + s / 2, class: 'bg-die-q', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
@@ -162,10 +166,10 @@ export function createBoard(container, { onPoint, onRoll } = {}) {
       svg.appendChild(g);
     });
     if (state === 'idle') {
-      const label = el('text', { x: M + 9.5, y: y + s + 0.66, class: 'bg-roll-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+      const label = el('text', { x: centerX, y: y + s + 0.66, class: 'bg-roll-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
       label.textContent = 'TAP TO ROLL'; svg.appendChild(label);
     } else if (state === 'dup') {
-      const label = el('text', { x: M + 9.5, y: y + s + 0.66, class: 'bg-doubles-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+      const label = el('text', { x: centerX, y: y + s + 0.66, class: 'bg-doubles-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
       label.textContent = 'DOUBLES!'; svg.appendChild(label);
     }
   }
