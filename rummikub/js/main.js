@@ -719,7 +719,7 @@ const SUIT_SHAPE = { k: '●', r: '◆', b: '▲', o: '■' };
 const SUIT_NAME = { k: 'black', r: 'red', b: 'blue', o: 'orange' };
 function tileName(t) { return isJoker(t) ? 'a joker' : `a ${SUIT_NAME[tileColor(t)]} ${tileNum(t)}`; }
 function tileHtml(t, attrs = '') {
-  if (isJoker(t)) return `<div class="rk-tile c-j" role="img" aria-label="joker" ${attrs}>☺</div>`;
+  if (isJoker(t)) return `<div class="rk-tile c-j" role="img" aria-label="joker" ${attrs}>🃏</div>`;
   const c = tileColor(t), n = tileNum(t);
   return `<div class="rk-tile c-${c}" role="img" aria-label="${n} ${SUIT_NAME[c]}" ${attrs}>`
     + `<span class="rk-suit" aria-hidden="true">${SUIT_SHAPE[c]}</span>${n}</div>`;
