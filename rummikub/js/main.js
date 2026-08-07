@@ -32,6 +32,8 @@ const app = {
   work: null,            // { sets: [[tile]], rack: [tile] } — this turn's working arrangement
   held: null,            // { tile, returnable } — a tile currently picked up
   sortMode: 'run',       // rack sort: 'run' (colour→number) or 'group' (number→colour)
+  lastDrawn: null,       // tile I most recently drew, highlighted until my next turn
+  drag: null,            // in-progress tile drag, or null
   present: new Set(),    // seats currently online (strings)
   connMode: 'db', pendingMoves: new Map(), flagClaimed: false,
   timeKey: 'unlimited', turnAnchorMs: 0, finishPersisted: false,
@@ -212,7 +214,7 @@ async function createChallengeWithTime(friend, timeKey) {
 
 async function enterRoom(code, playerIndex, name, room) {
   app.code = code; app.playerIndex = playerIndex; app.name = name; app.room = room;
-  app.rematching = false; app.work = null; app.held = null; app.present = new Set();
+  app.rematching = false; app.work = null; app.held = null; app.present = new Set(); app.lastDrawn = null; app.drag = null;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
   saveSession({ code, playerIndex, name });
 
@@ -377,7 +379,7 @@ function announceLastMove() {
   if (!lm) { setStatus(''); return; }
   const who = lm.player === app.playerIndex ? 'You' : playerName(lm.player);
   if (lm.type === 'play') setStatus(`${who} played ${lm.count} tile${lm.count === 1 ? '' : 's'}.`);
-  else if (lm.type === 'draw') setStatus(`${who} drew a tile.`);
+  else if (lm.type === 'draw') setStatus(lm.player === app.playerIndex ? `You drew ${tileName(lm.tile)}.` : `${who} drew a tile.`);
   else if (lm.type === 'pass') setStatus(`${who} passed.`);
   else if (lm.type === 'start') setStatus(`Game on! ${playerName(lm.first)} goes first.`);
   else if (lm.type === 'resign') setStatus(`${who} left the game.`);
@@ -408,6 +410,7 @@ function sortRack(rack) {
 function initWork() {
   app.work = { sets: app.state.table.map((s) => s.slice()), rack: sortRack(app.state.racks[app.playerIndex].slice()) };
   app.held = null;
+  app.lastDrawn = null; // a fresh turn — the "just drawn" highlight has served its purpose
 }
 function syncWork() {
   if (!app.state) return;
@@ -477,11 +480,89 @@ function dropToRack() {
   renderAll();
 }
 
+// ---- Drag and drop (pointer-based; the picked tile floats above the finger) --
+// A drag reuses the same pick/drop model as tapping: crossing the move
+// threshold picks the tile up (into app.held) and floats a ghost above the
+// finger; releasing over a set / “New set” / the rack drops it there.
+
+const DRAG_LIFT = (pt) => (pt === 'touch' ? 46 : 6); // px the tile rides above the finger
+let suppressClick = false;
+
+function dragSourceAt(e, area) {
+  if (!isMyTurn() || !app.work || app.held) return null;
+  if (e.pointerType === 'mouse' && e.button !== 0) return null;
+  const tileEl = e.target.closest('.rk-tile'); if (!tileEl) return null;
+  if (area === 'rack') {
+    const i = +tileEl.dataset.idx; const tile = app.work.rack[i];
+    return tile == null ? null : { srcType: 'rack', rackIdx: i, tile };
+  }
+  const setEl = tileEl.closest('.rk-set'); if (!setEl) return null;
+  const si = +setEl.dataset.set, ti = +tileEl.dataset.idx; const tile = app.work.sets[si]?.[ti];
+  return tile == null ? null : { srcType: 'table', setIdx: si, tileIdx: ti, tile };
+}
+function onTilePointerDown(e, area) {
+  const src = dragSourceAt(e, area); if (!src) return;
+  app.drag = { ...src, startX: e.clientX, startY: e.clientY, pt: e.pointerType, pointerId: e.pointerId, active: false, ghost: null };
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', onDragEnd);
+  window.addEventListener('pointercancel', onDragEnd);
+}
+function onDragMove(e) {
+  const d = app.drag; if (!d || e.pointerId !== d.pointerId) return;
+  if (!d.active) {
+    if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 8) return;
+    d.active = true;
+    if (d.srcType === 'rack') pickFromRack(d.rackIdx); else pickFromTable(d.setIdx, d.tileIdx);
+    if (!app.held) { endDrag(); return; }
+    d.ghost = makeGhost(d.tile); document.body.appendChild(d.ghost);
+  }
+  positionGhost(d.ghost, e.clientX, e.clientY, d.pt);
+  highlightDropTarget(e.clientX, e.clientY);
+  e.preventDefault();
+}
+function onDragEnd(e) {
+  const d = app.drag; if (!d || e.pointerId !== d.pointerId) return;
+  const wasActive = d.active, x = e.clientX, y = e.clientY, pt = d.pt;
+  endDrag();
+  if (!wasActive) return; // it was a tap → let the click handler pick it up
+  const target = dropElAt(x, y, pt);
+  if (target && target.classList.contains('rk-newset')) dropNewSet();
+  else if (target && target.classList.contains('rk-set')) dropIntoSet(+target.dataset.set);
+  else if (target && target.id === 'rack') dropToRack();
+  else renderAll();                       // dropped in the void — keep holding it
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 350);
+}
+function endDrag() {
+  window.removeEventListener('pointermove', onDragMove);
+  window.removeEventListener('pointerup', onDragEnd);
+  window.removeEventListener('pointercancel', onDragEnd);
+  clearDropHighlight();
+  if (app.drag && app.drag.ghost) app.drag.ghost.remove();
+  app.drag = null;
+}
+function makeGhost(tile) {
+  const wrap = document.createElement('div'); wrap.innerHTML = tileHtml(tile);
+  const el = wrap.firstElementChild; el.classList.add('rk-ghost'); el.removeAttribute('data-idx');
+  return el;
+}
+function positionGhost(g, x, y, pt) { if (g) { g.style.left = `${x}px`; g.style.top = `${y - DRAG_LIFT(pt)}px`; } }
+// The drop target under the FLOATING tile (finger − lift), so it lands where seen.
+function dropElAt(x, y, pt) {
+  const el = document.elementFromPoint(x, y - DRAG_LIFT(pt)); if (!el) return null;
+  const ns = el.closest('.rk-newset'); if (ns) return ns;
+  const se = el.closest('.rk-set'); if (se) return se;
+  const rk = el.closest('#rack'); if (rk && app.held && app.held.returnable) return rk;
+  return null;
+}
+function highlightDropTarget(x, y) { clearDropHighlight(); const t = dropElAt(x, y, app.drag.pt); if (t) t.classList.add('drag-over'); }
+function clearDropHighlight() { document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over')); }
+
 let listenersReady = false;
 function ensureListeners() {
   if (listenersReady) return; listenersReady = true;
+  // Tap to pick up / place (the drag path below suppresses the click it fires).
   $('table-area').addEventListener('click', (e) => {
-    if (!isMyTurn() || !app.work) return;
+    if (suppressClick || !isMyTurn() || !app.work) return;
     const tileEl = e.target.closest('.rk-tile');
     const newSet = e.target.closest('.rk-newset');
     const setEl = e.target.closest('.rk-set');
@@ -493,11 +574,14 @@ function ensureListeners() {
     if (tileEl && setEl) pickFromTable(+setEl.dataset.set, +tileEl.dataset.idx);
   });
   $('rack').addEventListener('click', (e) => {
-    if (!isMyTurn() || !app.work) return;
+    if (suppressClick || !isMyTurn() || !app.work) return;
     if (app.held) return dropToRack();
     const tileEl = e.target.closest('.rk-tile');
     if (tileEl) pickFromRack(+tileEl.dataset.idx);
   });
+  // Drag to pick up + place in one gesture (tile floats above the finger).
+  $('table-area').addEventListener('pointerdown', (e) => onTilePointerDown(e, 'table'));
+  $('rack').addEventListener('pointerdown', (e) => onTilePointerDown(e, 'rack'));
   $('held-area').addEventListener('click', () => { /* tapping the held chip does nothing; place it somewhere */ });
   $('btn-play').addEventListener('click', doPlay);
   $('btn-reset').addEventListener('click', () => { resetWork(); renderAll(); promptForTurn(); });
@@ -521,7 +605,8 @@ async function doDraw() {
   if (!isMyTurn()) return;
   if (app.held) { setStatus('Place the tile you’re holding first.'); return; }
   resetWork();
-  await submitMove(poolLeft() > 0 ? 'draw' : 'pass', {});
+  if (poolLeft() > 0) { app.lastDrawn = app.state.pool[0]; await submitMove('draw', {}); }
+  else { app.lastDrawn = null; await submitMove('pass', {}); }
 }
 
 async function submitMove(type, payload) {
@@ -632,6 +717,7 @@ function renderPlayers() {
 // carries meaning, so it must never be the ONLY signal — see CLAUDE.md).
 const SUIT_SHAPE = { k: '●', r: '◆', b: '▲', o: '■' };
 const SUIT_NAME = { k: 'black', r: 'red', b: 'blue', o: 'orange' };
+function tileName(t) { return isJoker(t) ? 'a joker' : `a ${SUIT_NAME[tileColor(t)]} ${tileNum(t)}`; }
 function tileHtml(t, attrs = '') {
   if (isJoker(t)) return `<div class="rk-tile c-j" role="img" aria-label="joker" ${attrs}>☺</div>`;
   const c = tileColor(t), n = tileNum(t);
@@ -665,7 +751,13 @@ function renderRack() {
   const mine = isMyTurn() && app.work;
   const rack = mine ? app.work.rack : sortRack((app.state.started ? app.state.racks[app.playerIndex] : []).slice());
   el.classList.toggle('drop-ok', !!(mine && app.held && app.held.returnable));
-  el.innerHTML = rack.map((t, i) => tileHtml(t, mine ? `data-idx="${i}"` : 'data-static="1"')).join('');
+  let markedDrawn = false;
+  el.innerHTML = rack.map((t, i) => {
+    let attrs = mine ? `data-idx="${i}"` : 'data-static="1"';
+    // Flag the tile just drawn (once) so it's obvious what landed in the rack.
+    if (!mine && !markedDrawn && app.lastDrawn && t === app.lastDrawn) { attrs += ' data-drawn="1"'; markedDrawn = true; }
+    return tileHtml(t, attrs);
+  }).join('');
 }
 function renderHeld() {
   const el = $('held-area'); if (!el) return;

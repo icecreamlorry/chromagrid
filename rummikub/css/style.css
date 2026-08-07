@@ -84,7 +84,7 @@
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: calc(var(--rk-tile-h) * 0.5); line-height: 1;
   cursor: pointer; user-select: none; -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none;   /* a drag starting on a tile shouldn't scroll the area */
 }
 /* Suit colours. Colour alone can't be relied on (red-green deficiency), so each
    tile also carries a suit SHAPE pip (below) and an aria-label naming the colour;
@@ -104,6 +104,23 @@
 .rk-tile.selected { outline: 3px solid var(--cyan); outline-offset: 1px; }
 .rk-table .rk-tile { cursor: pointer; }
 .rk-tile[data-static="1"] { cursor: default; }
+/* The tile just drawn into the rack — a clear ring + glow so it stands out. */
+.rk-tile[data-drawn] {
+  outline: 3px solid var(--cyan); outline-offset: 1px;
+  box-shadow: inset 0 -3px 0 var(--rk-face-edge), 0 0 12px 2px rgba(88, 192, 255, 0.75);
+  animation: rk-drawn-pop 0.5s ease-out;
+}
+@keyframes rk-drawn-pop { 0% { transform: translateY(-6px) scale(1.14); } 100% { transform: translateY(0) scale(1); } }
+
+/* Drag: the picked-up tile floats ABOVE the finger (Wurdz-style), and the drop
+   target under it gets a bright outline. */
+.rk-ghost {
+  position: fixed; z-index: 100; pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: inset 0 -3px 0 var(--rk-face-edge), 0 8px 18px rgba(0, 0, 0, 0.55);
+}
+.rk-set.drag-over, .rk-newset.drag-over { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.rk-rack.drag-over { outline: 3px solid var(--cyan); outline-offset: -3px; }
 
 /* ---- Held tile (the tile you've picked up) ---- */
 .rk-held {

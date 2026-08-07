@@ -327,9 +327,12 @@ export function applyMove(state, move) {
     case 'draw': {
       if (player !== state.turn) throw new Error('Move played out of turn in log');
       if (!state.pool.length) throw new Error('Cannot draw from an empty pool');
-      state.racks[player].push(state.pool.shift());
+      const drawn = state.pool.shift();
+      state.racks[player].push(drawn);
       state.passes = 0;
-      state.lastMove = { type: 'draw', player, poolLeft: state.pool.length };
+      // `tile` is derivable on every client (the pool is deterministic); the UI
+      // only reveals it to the player who drew, like the rest of a rack.
+      state.lastMove = { type: 'draw', player, tile: drawn, poolLeft: state.pool.length };
       state.turn = nextSeat(state, player);
       break;
     }
