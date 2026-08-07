@@ -93,7 +93,7 @@
 .rk-tile.c-k { color: #2b3440; }
 .rk-tile.c-r { color: #c81236; }               /* a cool crimson, pulled away from orange */
 .rk-tile.c-b { color: #2470c4; }
-.rk-tile.c-o { color: #d9aa0f; }               /* a bright golden-yellow, well clear of red */
+.rk-tile.c-o { color: #c79408; }               /* a golden-yellow, well clear of red */
 .rk-tile.c-j { color: #8455c6; }               /* joker smiley — its own hue */
 /* Per-suit pip: a redundant, colour-independent cue. Each suit uses a distinct
    SHAPE *and* a distinct horizontal POSITION along the top edge (left → 1/3 →
