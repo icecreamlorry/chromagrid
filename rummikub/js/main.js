@@ -696,7 +696,7 @@ function renderPlayers() {
     const isTurn = s?.started && !s.gameOver && s.turn === seat && !s.out?.[seat];
     const out = !!s?.out?.[seat];
     const clk = clockFor(seat);
-    const dot = `<span class="online-dot ${online ? 'online' : 'offline'}"></span>`;
+    const dot = `<span class="online-dot ${online ? 'online' : 'offline'}" title="${online ? 'online' : 'offline'}"></span>`;
     let meta;
     if (out) meta = '<span class="rk-p-out-tag">out</span>';
     else if (s?.started) meta = `<span class="rk-p-tiles">${RACK_ICON}${s.racks[seat]?.length ?? 0}</span>`;

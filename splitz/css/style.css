@@ -187,7 +187,16 @@ button, button:hover, button:focus { box-shadow: none; }
   box-shadow: 0 3px 0 color-mix(in srgb, var(--cyan) 18%, transparent), 0 4px 10px rgba(0,0,0,0.10);
 }
 .htile { box-shadow: 0 3px 0 color-mix(in srgb, var(--cyan) 18%, transparent), 0 4px 8px rgba(0,0,0,0.10); }
-.gtile.bad { border-color: var(--magenta); color: var(--magenta); box-shadow: 0 3px 0 color-mix(in srgb, var(--magenta) 22%, transparent), 0 4px 10px rgba(0,0,0,0.12); }
+/* Invalid tiles must read without relying on colour (red-green deficiency), so
+   they also get a dashed border and a ✕ badge, not just magenta. */
+.gtile.bad { border-color: var(--magenta); border-style: dashed; color: var(--magenta); box-shadow: 0 3px 0 color-mix(in srgb, var(--magenta) 22%, transparent), 0 4px 10px rgba(0,0,0,0.12); }
+.gtile.bad::after {
+  content: '✕'; position: absolute; top: -6px; right: -6px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--magenta); color: #fff;
+  font-size: 10px; font-weight: 900; line-height: 15px; text-align: center;
+  box-shadow: 0 0 0 2px var(--panel); pointer-events: none;
+}
 
 /* ---- Hand rack ---- */
 .play-foot { display: flex; flex-direction: column; gap: 6px; padding: 4px 12px 12px; align-items: center; flex: 0 0 auto; }
