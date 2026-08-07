@@ -781,7 +781,7 @@ function renderControls() {
   const sortBtn = $('btn-sort');
   sortBtn.classList.toggle('hidden', !(s.started && !s.gameOver));
   // Label shows what the next press does (the opposite of the current sort).
-  sortBtn.textContent = app.sortMode === 'run' ? 'Sort by value' : 'Sort by colour';
+  sortBtn.textContent = (app.sortMode === 'run' ? 'Sort by value' : 'Sort by colour') + ' ⇄';
 }
 
 function renderOverlays() {
