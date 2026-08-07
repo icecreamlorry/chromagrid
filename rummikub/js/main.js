@@ -778,7 +778,10 @@ function renderControls() {
   draw.classList.toggle('hidden', !my);
   draw.textContent = poolLeft() > 0 ? 'Draw a tile' : 'Pass';
   draw.disabled = !!app.held;
-  $('btn-sort').classList.toggle('hidden', !(s.started && !s.gameOver));
+  const sortBtn = $('btn-sort');
+  sortBtn.classList.toggle('hidden', !(s.started && !s.gameOver));
+  // Label shows what the next press does (the opposite of the current sort).
+  sortBtn.textContent = app.sortMode === 'run' ? 'Sort by value' : 'Sort by colour';
 }
 
 function renderOverlays() {
