@@ -91,9 +91,9 @@
    these hues are picked to keep decent contrast on the cream face and separate
    by lightness as well as hue. */
 .rk-tile.c-k { color: #2b3440; }
-.rk-tile.c-r { color: #d13a2c; }
+.rk-tile.c-r { color: #c81236; }               /* a cool crimson, pulled away from orange */
 .rk-tile.c-b { color: #2470c4; }
-.rk-tile.c-o { color: #c8730f; }
+.rk-tile.c-o { color: #b3740a; }               /* a warm amber/gold, clearly not red */
 .rk-tile.c-j { color: #8455c6; }               /* joker smiley — its own hue */
 /* Per-suit pip: a redundant, colour-independent cue. Each suit uses a distinct
    SHAPE *and* a distinct horizontal POSITION along the top edge (left → 1/3 →
@@ -106,7 +106,8 @@
 .rk-tile.c-k .rk-suit { left: 3px; }                       /* black ● — left */
 .rk-tile.c-r .rk-suit { left: 33%; transform: translateX(-50%); }  /* red ◆ — a third across */
 .rk-tile.c-b .rk-suit { left: 66%; transform: translateX(-50%); }  /* blue ▲ — two thirds across */
-.rk-tile.c-o .rk-suit { right: 3px; }                      /* orange ■ — right */
+/* The ■ glyph reads visually larger than ●◆▲, so shrink it ~10% to match. */
+.rk-tile.c-o .rk-suit { right: 3px; font-size: calc(var(--rk-tile-h) * 0.234); }  /* orange ■ — right */
 .rk-tile.held { visibility: hidden; }           /* it's floating in the held-chip */
 .rk-tile.selected { outline: 3px solid var(--cyan); outline-offset: 1px; }
 .rk-table .rk-tile { cursor: pointer; }
