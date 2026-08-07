@@ -616,7 +616,10 @@ function renderPlayers() {
     if (out) meta = '<span class="rk-p-out-tag">out</span>';
     else if (s?.started) meta = `<span class="rk-p-tiles">${RACK_ICON}${s.racks[seat]?.length ?? 0}</span>`;
     else meta = '';
+    // Whose turn is shown by a ▶ marker (+ label), not just the coloured border.
+    const turnMark = isTurn ? '<span class="rk-p-turn" aria-label="to play">▶</span>' : '';
     html += `<div class="rk-player${me ? ' is-me' : ''}${isTurn ? ' is-turn' : ''}${out ? ' is-out' : ''}">`
+      + turnMark
       + `<span class="rk-p-name">${dot}<span class="nm">${esc(playerName(seat))}${me ? ' (you)' : ''}</span></span>`
       + meta
       + (s?.started && s.tpm ? `<span class="${clk.cls}">${clk.text}</span>` : '')
@@ -625,10 +628,15 @@ function renderPlayers() {
   el.innerHTML = html;
 }
 
+// Suit shapes + names are a colour-independent cue (the tile's colour also
+// carries meaning, so it must never be the ONLY signal — see CLAUDE.md).
+const SUIT_SHAPE = { k: '●', r: '◆', b: '▲', o: '■' };
+const SUIT_NAME = { k: 'black', r: 'red', b: 'blue', o: 'orange' };
 function tileHtml(t, attrs = '') {
-  const c = isJoker(t) ? 'j' : tileColor(t);
-  const label = isJoker(t) ? '☺' : tileNum(t);
-  return `<div class="rk-tile c-${c}" ${attrs}>${label}</div>`;
+  if (isJoker(t)) return `<div class="rk-tile c-j" role="img" aria-label="joker" ${attrs}>☺</div>`;
+  const c = tileColor(t), n = tileNum(t);
+  return `<div class="rk-tile c-${c}" role="img" aria-label="${n} ${SUIT_NAME[c]}" ${attrs}>`
+    + `<span class="rk-suit" aria-hidden="true">${SUIT_SHAPE[c]}</span>${n}</div>`;
 }
 function renderTable() {
   const el = $('table-area'); if (!el) return;
@@ -638,9 +646,14 @@ function renderTable() {
   el.classList.remove('is-empty');
   let html = '';
   sets.forEach((set, si) => {
-    let cls = 'rk-set';
-    if (mine) { cls += classifySet(set).valid ? ' valid' : ' invalid'; if (app.held) cls += ' drop-ok'; }
-    html += `<div class="${cls}" data-set="${si}">`;
+    let cls = 'rk-set', aria = '';
+    if (mine) {
+      const valid = classifySet(set).valid;
+      cls += valid ? ' valid' : ' invalid';
+      if (app.held) cls += ' drop-ok';
+      aria = ` role="group" aria-label="${valid ? 'valid set' : 'invalid set'}"`;
+    }
+    html += `<div class="${cls}" data-set="${si}"${aria}>`;
     set.forEach((t, ti) => { html += tileHtml(t, mine ? `data-idx="${ti}"` : 'data-static="1"'); });
     html += '</div>';
   });

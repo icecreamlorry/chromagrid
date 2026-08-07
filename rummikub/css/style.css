@@ -23,6 +23,7 @@
   font-size: 0.92rem;
 }
 .rk-player.is-turn { border-color: var(--cyan); box-shadow: 0 0 10px rgba(88, 192, 255, 0.35); }
+.rk-p-turn { color: var(--cyan); font-size: 0.8rem; line-height: 1; }
 .rk-player.is-me .rk-p-name { font-weight: 800; }
 .rk-player.is-out { opacity: 0.5; }
 .rk-p-name { display: flex; align-items: center; gap: 6px; }
@@ -46,11 +47,24 @@
 .rk-empty-hint { font-size: 0.95rem; }
 
 .rk-set {
+  position: relative;
   display: inline-flex; gap: 3px; padding: 6px; border-radius: 10px;
   border: 2px solid var(--rk-face-line); background: rgba(0, 0, 0, 0.14);
 }
-.rk-set.valid { border-color: var(--good); box-shadow: 0 0 8px rgba(76, 209, 126, 0.35); }
-.rk-set.invalid { border-color: var(--bad); box-shadow: 0 0 8px rgba(233, 90, 78, 0.4); }
+/* Validity is shown by a corner badge with a distinct GLYPH (✓ vs ✕) and a
+   distinct border STYLE (solid vs dashed) as well as colour, so it reads without
+   relying on red/green — see the accessibility note in CLAUDE.md. */
+.rk-set.valid { border-color: var(--good); border-style: solid; box-shadow: 0 0 8px rgba(76, 209, 126, 0.35); }
+.rk-set.invalid { border-color: var(--bad); border-style: dashed; box-shadow: 0 0 8px rgba(233, 90, 78, 0.4); }
+.rk-set.valid::after, .rk-set.invalid::after {
+  position: absolute; top: -9px; right: -9px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: #fff;
+  border: 2px solid var(--panel);
+}
+.rk-set.valid::after { content: '✓'; background: var(--good); }
+.rk-set.invalid::after { content: '✕'; background: var(--bad); }
 .rk-set.drop-ok { border-color: var(--cyan); background: rgba(88, 192, 255, 0.16); }
 
 .rk-newset {
@@ -72,11 +86,20 @@
   cursor: pointer; user-select: none; -webkit-user-select: none;
   touch-action: manipulation;
 }
+/* Suit colours. Colour alone can't be relied on (red-green deficiency), so each
+   tile also carries a suit SHAPE pip (below) and an aria-label naming the colour;
+   these hues are picked to keep decent contrast on the cream face and separate
+   by lightness as well as hue. */
 .rk-tile.c-k { color: #2b3440; }
-.rk-tile.c-r { color: #d1453b; }
-.rk-tile.c-b { color: #2f6bc4; }
-.rk-tile.c-o { color: #e08a2c; }
-.rk-tile.c-j { color: #d1453b; }               /* joker smiley */
+.rk-tile.c-r { color: #d13a2c; }
+.rk-tile.c-b { color: #2470c4; }
+.rk-tile.c-o { color: #c8730f; }
+.rk-tile.c-j { color: #8455c6; }               /* joker smiley — its own hue */
+/* Per-suit shape in the corner: a redundant, colour-independent cue. */
+.rk-suit {
+  position: absolute; top: 3px; left: 4px;
+  font-size: calc(var(--rk-tile-h) * 0.2); line-height: 1; opacity: 0.85;
+}
 .rk-tile.held { visibility: hidden; }           /* it's floating in the held-chip */
 .rk-tile.selected { outline: 3px solid var(--cyan); outline-offset: 1px; }
 .rk-table .rk-tile { cursor: pointer; }

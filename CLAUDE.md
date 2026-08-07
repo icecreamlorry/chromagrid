@@ -97,6 +97,29 @@ The classic mistake: setting only `justify-content: center` without
 `display: flex` + `align-items: center`. That leaves the card top-left **and**
 lets its fixed width push past the edge → both bugs at once.
 
+### 3. Never convey information by colour alone (accessibility)
+
+**Any time colour signals information, pair it with a second, colour-independent
+cue — a symbol/glyph, a shape, a border-style, or a text/aria label.** Only if a
+redundant cue is genuinely impossible may you fall back to colours chosen to be
+distinguishable under the common deficiencies (red-green is by far the most
+common — never rely on red-vs-green), and even then prefer hues that also differ
+in **lightness**. This applies to every game; **re-check existing games too.**
+Sanity test: view the screen in greyscale — every distinction must survive.
+
+Watch for: valid/invalid states, status/turn indicators, categories/suits/teams,
+"good/bad" numbers, selection vs error highlights. Small supplementary dots
+(online/offline) still need a `title`/label.
+
+**Rummikub is the reference for getting this right:**
+- Set validity — a corner **✓ / ✕ badge** *and* **solid vs dashed** border, not
+  just `--good`/`--bad` green/red (`rk-set.valid/.invalid` + `::after`).
+- Tile suit — the colour is meaningful, so each tile also carries a **suit shape
+  pip** (`●◆▲■`, `.rk-suit`) *and* a `role="img"` `aria-label="7 red"` naming the
+  colour; the four hues are also picked to separate by lightness on the cream face.
+- Whose turn — a **▶ marker** (`.rk-p-turn`) beside the name, not only the cyan
+  border on the player chip.
+
 ## Shared layer (don't re-implement per game)
 
 - `shared/rooms.js` + `shared/net.js` — rooms, moves, realtime, push. Each game's
