@@ -4,7 +4,9 @@ import { newGameState, applyMove, replayMoves, legalMoves, countDiscs } from './
 import { createReversiBoard } from './board.js';
 import { createRoom, joinRoom, fetchMoves, RoomConnection, seatName } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
-import { takeRoomParam } from '../../shared/deep-link.js';
+import { takeRoomParam, roomShareUrl } from '../../shared/deep-link.js';
+import { openHistory } from '../../shared/history.js';
+import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
 import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
@@ -23,6 +25,7 @@ const app = {
 let boardUI = null;
 let moveTimer = null;
 let setupCtx = null;
+let rematch = null;
 
 function landingError(msg) {
   const el = $('landing-error');
@@ -60,6 +63,18 @@ document.querySelectorAll('#setup-times .setup-time').forEach((btn) => {
 
 $('setup-cancel')?.addEventListener('click', closeSetup);
 
+// Copy invite link click handler on room code chip
+$('room-code-chip')?.addEventListener('click', async () => {
+  if (!app.code) return;
+  try {
+    await navigator.clipboard.writeText(roomShareUrl(app.code));
+    const text = $('room-code-text');
+    const orig = text.textContent;
+    text.textContent = 'COPIED!';
+    setTimeout(() => { text.textContent = orig; }, 1500);
+  } catch {}
+});
+
 function updateUI() {
   if (!app.state) return;
 
@@ -94,6 +109,11 @@ function updateUI() {
     const isMyTurn = app.state.turn === app.playerIndex;
     const turnName = isMyTurn ? 'Your turn' : `${seatName(app.room, app.state.turn) || 'Opponent'}'s turn`;
     setStatus(turnName);
+  }
+
+  // Update live move timer if active
+  if (moveTimer) {
+    moveTimer.render();
   }
 }
 
@@ -157,12 +177,28 @@ async function enterGameScreen(code, playerIndex, name, room, offline = false) {
     boardUI = createReversiBoard($('board'), handleCellClick);
   }
 
+  // Setup move timer and confirmation toggle
+  if (moveTimer) moveTimer.destroy();
+  moveTimer = createMoveTimer({
+    myClockEl: $('my-clock'),
+    oppClockEl: $('opp-clock'),
+    getTurn: () => app.state?.turn,
+    mySeat: app.playerIndex,
+    timeKey: room?.players?.[0]?.time || app.timeKey,
+  });
+
+  injectConfirmToggle(GAME_SLUG, true);
+
   updateUI();
 
   if (app.conn) try { app.conn.close(); } catch {}
   if (!offline && code) {
     app.conn = new RoomConnection(code, playerIndex, name, {
-      onMove: async () => {
+      onMove: async (m) => {
+        if (m.type === 'rematch') {
+          if (rematch) rematch.follow(m.payload.code);
+          return;
+        }
         const moves = await fetchMoves(code);
         app.state = replayMoves(room.seed, moves);
         updateUI();
@@ -183,6 +219,16 @@ async function startNewGame(timeKey) {
     await enterGameScreen('SOLO', 0, name, null, true);
   }
 }
+
+rematch = createRematch({
+  state: app,
+  seatKey: 'playerIndex',
+  createRoom: (name) => createRoom('reversi', name),
+  joinRoom: (code, name) => joinRoom(code, name, app.userId),
+  enterRoom: (code, playerIndex, name, room) => enterGameScreen(code, playerIndex, name, room, false),
+  button: () => $('btn-rematch'),
+  onError: (msg) => setStatus(msg),
+});
 
 $('btn-create')?.addEventListener('click', () => {
   openSetup(getPlayerName(), app.userId, landingError);
@@ -215,9 +261,13 @@ $('btn-rematch')?.addEventListener('click', () => {
   if (app.offlineSolo) {
     app.state = newGameState();
     updateUI();
-  } else {
-    startNewGame(app.timeKey);
+  } else if (rematch) {
+    rematch.start();
   }
+});
+
+$('btn-lobby-history')?.addEventListener('click', () => {
+  openHistory({ userId: app.userId, gameSlug: GAME_SLUG });
 });
 
 async function boot() {

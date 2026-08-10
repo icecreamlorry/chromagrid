@@ -1,15 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="maritime">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Chrono // LB GAMES</title>
-  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#04040f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chrono">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/quiz-game.css">
   <link rel="stylesheet" href="css/style.css">
   <script>
-    window.LB_CONFIG = { gameSlug: 'chrono', gameName: 'Chrono', history: true, daily: true, defaultTheme: 'synth' };
+    window.LB_CONFIG = { gameSlug: 'chrono', gameName: 'Chrono', history: true, daily: false, defaultTheme: 'maritime' };
   </script>
   <script src="../shared/theme-boot.js"></script>
 </head>
@@ -51,9 +57,73 @@
       </button>
     </header>
 
-    <div id="chrono-stage" class="quiz-stage"></div>
+    <div id="players-strip" class="players-strip"></div>
+    <div id="spectate-hint" class="spectate-hint hidden">Tap a player to see their answers</div>
+
+    <div class="prompt-bar">
+      <div id="prompt-line"></div>
+      <div id="prompt-sub"></div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="chrono-stage" class="quiz-stage"></div>
+
+      <!-- Prestart Overlay -->
+      <div id="prestart-overlay" class="board-overlay">
+        <div class="overlay-card config-card">
+          <div id="start-title" class="overlay-title">CHRONO RACE</div>
+          <div id="cfg" class="cfg">
+            <div class="cfg-group-label">ROUNDS</div>
+            <div id="cfg-modes" class="cfg-grid modes"></div>
+          </div>
+          <p id="start-info" class="muted">Sort events chronologically from earliest to latest.</p>
+          <button id="btn-start" class="btn-primary">START</button>
+          <button id="btn-cfg-back" class="link-btn hidden">CHANGE SETTINGS</button>
+          <p id="start-waiting" class="muted hidden">Waiting for the host to start…</p>
+        </div>
+      </div>
+
+      <!-- Countdown Overlay -->
+      <div id="countdown-overlay" class="board-overlay hidden">
+        <div id="countdown-num" class="countdown-num"></div>
+      </div>
+
+      <!-- Results Overlay -->
+      <div id="results-overlay" class="board-overlay hidden">
+        <div class="overlay-card">
+          <button id="btn-results-close" class="overlay-close" title="Look at the answers">✕</button>
+          <div id="results-title" class="overlay-title">RESULTS</div>
+          <div id="results-winner" class="results-winner"></div>
+          <ol id="results-list" class="results-list"></ol>
+          <p id="results-waiting" class="muted hidden">Waiting for others to finish…</p>
+          <div class="row">
+            <button id="btn-rematch" class="btn-primary">REMATCH</button>
+            <button id="btn-results-look" class="btn-ghost">SEE ANSWERS</button>
+            <button id="btn-results-done" class="btn-ghost">LEAVE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="play-foot">
+      <p id="status-line" class="status-line"></p>
+
+      <div id="panel-confirm" class="mode-panel hidden">
+        <button id="btn-confirm-order" class="btn-primary wide-btn">CONFIRM ORDER</button>
+      </div>
+    </div>
   </section>
 
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play Chrono</h2>
+      <p>Sort historical events, discoveries, and inventions in chronological order from earliest to latest.</p>
+      <button id="btn-help-close" class="btn-primary">GOT IT</button>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/lobby-ui.js"></script>
   <script type="module" src="../shared/account-ui.js"></script>
   <script type="module" src="js/main.js"></script>
   <script type="module" src="../shared/devtools.js"></script>

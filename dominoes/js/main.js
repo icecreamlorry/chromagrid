@@ -1,12 +1,17 @@
 // dominoes/js/main.js — Dominoes controller matching Table Games group standards
 
-import { dealGame, canPlayTile, playTile, passTurn, drawFromBoneyard, replayMoves, hasPlayableTile } from './engine.js';
+import { dealGame, canPlayTile, playTile, passTurn, drawFromBoneyard, replayMoves, hasPlayableTile, getPlaySide } from './engine.js';
 import { createDominoesUI } from './board.js';
 import { createRoom, joinRoom, fetchMoves, RoomConnection, seatName } from './net.js';
-import { takeRoomParam } from '../../shared/deep-link.js';
+import { createRematch } from '../../shared/rematch.js';
+import { takeRoomParam, roomShareUrl } from '../../shared/deep-link.js';
+import { openHistory } from '../../shared/history.js';
+import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
 import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
+import { TIME_CONTROLS, createMoveTimer } from '../../shared/time-control.js';
+import { confirmEnabled, injectConfirmToggle } from '../../shared/move-confirm.js';
 import { GAME_SLUG } from './config.js';
 
 const $ = (id) => document.getElementById(id);
@@ -18,7 +23,9 @@ const app = {
 };
 
 let ui = null;
+let moveTimer = null;
 let setupCtx = null;
+let rematch = null;
 
 function landingError(msg) {
   const el = $('landing-error');
@@ -55,6 +62,18 @@ document.querySelectorAll('#setup-times .setup-time').forEach((btn) => {
 });
 
 $('setup-cancel')?.addEventListener('click', closeSetup);
+
+// Copy invite link click handler on room code chip
+$('room-code-chip')?.addEventListener('click', async () => {
+  if (!app.code) return;
+  try {
+    await navigator.clipboard.writeText(roomShareUrl(app.code));
+    const text = $('room-code-text');
+    const orig = text.textContent;
+    text.textContent = 'COPIED!';
+    setTimeout(() => { text.textContent = orig; }, 1500);
+  } catch {}
+});
 
 function updateUI() {
   if (!app.state) return;
@@ -109,13 +128,16 @@ function updateUI() {
     const turnName = isMyTurn ? 'Your turn' : `${seatName(app.room, app.state.turn) || 'Opponent'}'s turn`;
     setStatus(turnName);
   }
+
+  if (moveTimer) {
+    moveTimer.render();
+  }
 }
 
 function handleTileClick(tileIdx, tile) {
   if (!app.state || app.state.gameOver || app.state.turn !== app.playerIndex) return;
 
-  let side = 'right';
-  if (app.state.leftEnd !== null && tile[1] === app.state.leftEnd) side = 'left';
+  const side = getPlaySide(tile, app.state.leftEnd, app.state.rightEnd);
 
   try {
     app.state = playTile(app.state, app.playerIndex, tileIdx, side);
@@ -143,8 +165,7 @@ function triggerBotIfNeeded() {
       if (playableIndices.length > 0) {
         const pickIdx = playableIndices[0];
         const tile = botHand[pickIdx];
-        let side = 'right';
-        if (app.state.leftEnd !== null && tile[1] === app.state.leftEnd) side = 'left';
+        const side = getPlaySide(tile, app.state.leftEnd, app.state.rightEnd);
         app.state = playTile(app.state, 1, pickIdx, side);
       } else if (app.state.boneyard.length > 0) {
         app.state = drawFromBoneyard(app.state, 1);
@@ -201,12 +222,27 @@ async function enterGameScreen(code, playerIndex, name, room, offline = false) {
     ui = createDominoesUI($('chain'), $('my-rack'), handleTileClick);
   }
 
+  if (moveTimer) moveTimer.destroy();
+  moveTimer = createMoveTimer({
+    myClockEl: $('my-clock'),
+    oppClockEl: $('opp-clock'),
+    getTurn: () => app.state?.turn,
+    mySeat: app.playerIndex,
+    timeKey: room?.players?.[0]?.time || app.timeKey,
+  });
+
+  injectConfirmToggle(GAME_SLUG, true);
+
   updateUI();
 
   if (app.conn) try { app.conn.close(); } catch {}
   if (!offline && code) {
     app.conn = new RoomConnection(code, playerIndex, name, {
-      onMove: async () => {
+      onMove: async (m) => {
+        if (m.type === 'rematch') {
+          if (rematch) rematch.follow(m.payload.code);
+          return;
+        }
         const moves = await fetchMoves(code);
         app.state = replayMoves(room.seed, moves);
         updateUI();
@@ -227,6 +263,16 @@ async function startNewGame(timeKey) {
     await enterGameScreen('SOLO', 0, name, null, true);
   }
 }
+
+rematch = createRematch({
+  state: app,
+  seatKey: 'playerIndex',
+  createRoom: (name) => createRoom('dominoes', name),
+  joinRoom: (code, name) => joinRoom(code, name, app.userId),
+  enterRoom: (code, playerIndex, name, room) => enterGameScreen(code, playerIndex, name, room, false),
+  button: () => $('btn-rematch'),
+  onError: (msg) => setStatus(msg),
+});
 
 $('btn-create')?.addEventListener('click', () => {
   openSetup(getPlayerName(), app.userId, landingError);
@@ -259,9 +305,13 @@ $('btn-rematch')?.addEventListener('click', () => {
   if (app.offlineSolo) {
     app.state = dealGame(String(Date.now()), 2);
     updateUI();
-  } else {
-    startNewGame(app.timeKey);
+  } else if (rematch) {
+    rematch.start();
   }
+});
+
+$('btn-lobby-history')?.addEventListener('click', () => {
+  openHistory({ userId: app.userId, gameSlug: GAME_SLUG });
 });
 
 async function boot() {

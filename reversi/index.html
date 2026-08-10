@@ -1,15 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="maritime">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Reversi // LB GAMES</title>
-  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1c2733">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Reversi">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/table-game.css">
   <link rel="stylesheet" href="css/style.css">
   <script>
-    window.LB_CONFIG = { gameSlug: 'reversi', gameName: 'Reversi', history: true, daily: false, defaultTheme: 'synth' };
+    window.LB_CONFIG = { gameSlug: 'reversi', gameName: 'Reversi', history: true, daily: false, defaultTheme: 'maritime' };
   </script>
   <script src="../shared/theme-boot.js"></script>
 </head>
@@ -103,16 +109,18 @@
       <h2>Game Setup</h2>
       <p id="setup-subtitle">Choose a per-move time limit:</p>
       <div id="setup-times" class="setup-times">
-        <button class="btn-ghost setup-time" data-time="1m">1 MIN / MOVE</button>
-        <button class="btn-ghost setup-time" data-time="3m">3 MIN / MOVE</button>
-        <button class="btn-ghost setup-time" data-time="5m">5 MIN / MOVE</button>
-        <button class="btn-ghost setup-time" data-time="15m">15 MIN / MOVE</button>
-        <button class="btn-ghost setup-time" data-time="unlimited">NO TIMER</button>
+        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer</span></button>
+        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Correspondence</span></button>
+        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>Daily pace</span></button>
+        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Evening games</span></button>
+        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual pace</span></button>
+        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast blitz</span></button>
       </div>
       <button id="setup-cancel" class="link-btn">Cancel</button>
     </div>
   </div>
 
+  <script type="module" src="../shared/lobby-ui.js"></script>
   <script type="module" src="../shared/account-ui.js"></script>
   <script type="module" src="js/main.js"></script>
   <script type="module" src="../shared/devtools.js"></script>

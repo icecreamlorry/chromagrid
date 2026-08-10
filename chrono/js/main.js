@@ -1,44 +1,86 @@
-// chrono/js/main.js — Chrono quiz application main entry point
+// chrono/js/main.js — Chrono quiz application main entry point matching Quiz Games group standards
 
-import { createQuizGame } from '../../shared/quiz-game.js';
+import { buildRounds, gradeOrder, orderKey } from './engine.js';
 import { loadEvents } from './dataset.js';
-import { buildRounds, gradeOrder } from './engine.js';
-import { configReady, GAME_SLUG } from './config.js';
+import { createMode, renderReview, hidePanels } from './modes.js';
 import {
   createRoom, joinRoom, fetchRoom, fetchMoves, fetchMyRooms, updateRoomStatus,
   finishRoom, RoomConnection, triggerPush, seatName, seatLeft, markPlayerLeft,
 } from './net.js';
-import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
+import { createRematch } from '../../shared/rematch.js';
+import { createQuizGame } from '../../shared/quiz-game.js';
+import { configReady, GAME_SLUG } from './config.js';
+import { cachedUser, onAuthChange, displayName, signOut } from '../../shared/auth.js';
+import { openHistory } from '../../shared/history.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
+import { getGuestName } from '../../shared/guest-name.js';
+import {
+  registerServiceWorker, requestNotifications, isEnabled as notifyEnabled,
+  subscribeToPush,
+} from './notify.js';
+
+const modeMeta = {
+  timeline: { name: 'Timeline', prompt: 'Sort events chronologically:' }
+};
+
+const diffMeta = {
+  medium: { name: 'Standard', desc: '10 Rounds' }
+};
+
+function scoreOf(result) {
+  return result?.score ?? 0;
+}
+
+function rankSeats(results = {}) {
+  return Object.keys(results).sort((a, b) => (results[b]?.score || 0) - (results[a]?.score || 0));
+}
+
+function winnerSeat(results = {}) {
+  const ranked = rankSeats(results);
+  return ranked.length ? ranked[0] : null;
+}
 
 createQuizGame({
   slug: GAME_SLUG,
-  name: 'Chrono',
+  gameName: 'Chrono',
   stageId: 'chrono-stage',
   maxPlayers: 5,
   loadData: loadEvents,
-  buildRounds: (data, seed, cfg) => buildRounds(data, seed, cfg?.count ?? 10),
+  createMode,
+  renderReview,
+  hidePanels,
+  net: {
+    createRoom, joinRoom, fetchRoom, fetchMyRooms, updateRoomStatus,
+    finishRoom, RoomConnection, triggerPush, seatName, seatLeft, markPlayerLeft,
+  },
+  engine: {
+    modeMeta, diffMeta, rankSeats, winnerSeat, scoreOf,
+  },
+  initCfgSel: () => ({ mode: 'timeline', diff: 'medium' }),
+  loadCfgInto: () => {},
+  buildCfgButtons: () => {},
+  markSelected: () => {},
+  pickTitle: () => 'CHRONO RACE',
+  cfgSummary: () => '10 Rounds Chronological Sort',
+  cfgComplete: () => true,
+  diffEffect: () => '',
+  startPayload: () => ({ mode: 'timeline', diff: 'medium', count: 10 }),
+  payloadValid: () => true,
+  modeChipLabel: () => 'TIMELINE',
+  buildRounds: (data, seed, payload) => buildRounds(data, seed, payload?.count ?? 10),
   historyDetail: (data, result) => `${result?.score || 0} pts`,
   configReady,
   cachedUser,
   onAuthChange,
-  createRoom,
-  joinRoom,
-  fetchRoom,
-  fetchMoves,
-  fetchMyRooms,
-  updateRoomStatus,
-  finishRoom,
-  RoomConnection,
-  triggerPush,
-  seatName,
-  seatLeft,
-  markPlayerLeft,
+  displayName,
+  getGuestName,
+  signOut,
+  openHistory,
+  createRematch,
   filterDismissed,
   dismissGame,
   makeDismissControl,
-  registerServiceWorker: () => {},
-  notifyEnabled: () => false,
-  subscribeToPush: async () => {},
-  payloadValid: () => true,
+  registerServiceWorker,
+  notifyEnabled,
+  subscribeToPush,
 });
