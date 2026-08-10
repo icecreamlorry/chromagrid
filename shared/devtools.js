@@ -114,10 +114,39 @@ function injectStyles() {
       display: flex; flex-direction: column; gap: 1px;
       font-size: 0.68rem; line-height: 1.45;
     }
+    .lbdev-day-header {
+      display: flex; align-items: center; gap: 10px;
+      margin: 12px 0 4px 0; padding: 4px 0;
+      font-family: 'Orbitron', monospace; font-size: 0.54rem; font-weight: 700;
+      letter-spacing: 0.16em; color: #00f5ff; opacity: 0.9; text-transform: uppercase;
+      user-select: none;
+    }
+    .lbdev-day-header:first-child { margin-top: 2px; }
+    .lbdev-day-header::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, rgba(0,245,255,0.35), transparent);
+    }
+    .lbdev-empty-day {
+      padding: 8px 6px; color: rgba(0,245,255,0.45);
+      font-size: 0.66rem; font-style: italic;
+    }
     .lbdev-row {
-      display: grid; grid-template-columns: 58px 44px 1fr; gap: 8px;
-      padding: 4px 6px; border-radius: 2px;
+      display: grid; grid-template-columns: 58px 44px 1fr auto; gap: 8px;
+      padding: 5px 8px; border-radius: 3px;
       border-left: 2px solid transparent; white-space: pre-wrap; word-break: break-word;
+      cursor: pointer; position: relative; transition: background 0.15s, border-color 0.15s;
+    }
+    .lbdev-row:hover {
+      background: rgba(0,245,255,0.08) !important;
+      outline: 1px solid rgba(0,245,255,0.25);
+    }
+    .lbdev-row.error:hover {
+      background: rgba(255,40,80,0.12) !important;
+      outline: 1px solid rgba(255,59,92,0.4);
+    }
+    .lbdev-row.warn:hover {
+      background: rgba(255,210,0,0.1) !important;
+      outline: 1px solid rgba(255,210,59,0.4);
     }
     .lbdev-row .lbdev-time { color: rgba(0,245,255,0.4); font-variant-numeric: tabular-nums; }
     .lbdev-row .lbdev-lvl  { font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.56rem; }
@@ -127,6 +156,20 @@ function injectStyles() {
     .lbdev-row.warn  .lbdev-lvl { color: #ffe06a; }
     .lbdev-row.info  .lbdev-lvl { color: rgba(0,245,255,0.7); }
     .lbdev-row .lbdev-msg { color: #d6eef2; }
+    .lbdev-copy-hint {
+      font-size: 0.52rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: rgba(0,245,255,0.4); opacity: 0; transition: opacity 0.15s;
+      align-self: center; user-select: none;
+    }
+    .lbdev-row:hover .lbdev-copy-hint { opacity: 1; }
+    .lbdev-copy-badge {
+      font-size: 0.54rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: #00f5ff; background: rgba(0,245,255,0.22); border: 1px solid #00f5ff;
+      border-radius: 2px; padding: 1px 6px; opacity: 0; transition: opacity 0.2s, transform 0.2s;
+      position: absolute; right: 8px; top: 4px; pointer-events: none;
+      box-shadow: 0 0 10px rgba(0,245,255,0.5);
+    }
+    .lbdev-row.copied .lbdev-copy-badge { opacity: 1; transform: translateY(0); }
     .lbdev-empty { padding: 18px 6px; text-align: center; color: rgba(0,245,255,0.4); font-size: 0.7rem; }
     .lbdev-flags { display: flex; flex-direction: column; gap: 6px; }
     .lbdev-flag {
@@ -191,30 +234,163 @@ function buildPanel() {
   });
 }
 
+function getDayKey(t) {
+  const d = new Date(t);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function fmtDate(t) {
+  const d = new Date(t);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function fmtTime(t) {
   const d = new Date(t);
   return d.toTimeString().slice(0, 8);
 }
 
+function fmtDayHeader(dayKey, todayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const dateStr = dateObj.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).toUpperCase();
+
+  if (dayKey === todayKey) {
+    return `TODAY — ${dateStr}`;
+  }
+
+  const [ty, tm, td] = todayKey.split('-').map(Number);
+  const todayObj = new Date(ty, tm - 1, td);
+  const diffDays = Math.round((todayObj - dateObj) / (1000 * 60 * 60 * 24));
+  if (diffDays === 1) {
+    return `YESTERDAY — ${dateStr}`;
+  }
+
+  return dateStr;
+}
+
+async function copyRowDetail(r, li) {
+  const dateStr = fmtDate(r.t);
+  const timeStr = fmtTime(r.t);
+  const levelStr = (r.level || 'info').toUpperCase();
+  const text = `[${dateStr} ${timeStr}] [${levelStr}] ${r.msg}`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+
+  li.classList.add('copied');
+  clearTimeout(li._copyTimer);
+  li._copyTimer = setTimeout(() => {
+    li.classList.remove('copied');
+  }, 1200);
+}
+
+function createLogRow(r) {
+  const li = document.createElement('li');
+  li.className = 'lbdev-row ' + (r.level || 'info');
+  li.title = 'Click to copy event details';
+
+  const time = document.createElement('span');
+  time.className = 'lbdev-time';
+  time.textContent = fmtTime(r.t);
+
+  const lvl = document.createElement('span');
+  lvl.className = 'lbdev-lvl';
+  lvl.textContent = r.level;
+
+  const msg = document.createElement('span');
+  msg.className = 'lbdev-msg';
+  msg.textContent = r.msg;
+
+  const hint = document.createElement('span');
+  hint.className = 'lbdev-copy-hint';
+  hint.textContent = 'Copy';
+
+  const badge = document.createElement('span');
+  badge.className = 'lbdev-copy-badge';
+  badge.textContent = 'Copied';
+
+  li.append(time, lvl, msg, hint, badge);
+
+  li.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyRowDetail(r, li);
+  });
+
+  return li;
+}
+
 function renderLog() {
   const el = $('lbdev-log');
   if (!el) return;
-  const rows = getEntries();
-  if (!rows.length) {
-    el.innerHTML = '<li class="lbdev-empty">No log entries yet.</li>';
-    return;
+
+  const entries = getEntries();
+  const todayKey = getDayKey(Date.now());
+
+  const grouped = new Map();
+  for (const r of entries) {
+    const key = getDayKey(r.t);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(r);
   }
+
   el.innerHTML = '';
-  for (const r of rows) {
-    const li = document.createElement('li');
-    li.className = 'lbdev-row ' + r.level;
-    const time = document.createElement('span'); time.className = 'lbdev-time'; time.textContent = fmtTime(r.t);
-    const lvl  = document.createElement('span'); lvl.className  = 'lbdev-lvl';  lvl.textContent  = r.level;
-    const msg  = document.createElement('span'); msg.className  = 'lbdev-msg';  msg.textContent  = r.msg;
-    li.append(time, lvl, msg);
-    el.appendChild(li);
+
+  // 1. Always render Today at the top
+  const todayHeader = document.createElement('li');
+  todayHeader.className = 'lbdev-day-header';
+  todayHeader.textContent = fmtDayHeader(todayKey, todayKey);
+  el.appendChild(todayHeader);
+
+  const todayEntries = grouped.get(todayKey) || [];
+  if (todayEntries.length === 0) {
+    const emptyLi = document.createElement('li');
+    emptyLi.className = 'lbdev-empty-day';
+    emptyLi.textContent = 'No log entries for today yet.';
+    el.appendChild(emptyLi);
+  } else {
+    for (const r of todayEntries) {
+      el.appendChild(createLogRow(r));
+    }
   }
-  // Keep the newest entries in view.
+
+  // 2. Render past days (if any entries exist from earlier days)
+  const pastDayKeys = Array.from(grouped.keys())
+    .filter(k => k !== todayKey)
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const dayKey of pastDayKeys) {
+    const dayHeader = document.createElement('li');
+    dayHeader.className = 'lbdev-day-header';
+    dayHeader.textContent = fmtDayHeader(dayKey, todayKey);
+    el.appendChild(dayHeader);
+
+    const dayEntries = grouped.get(dayKey);
+    for (const r of dayEntries) {
+      el.appendChild(createLogRow(r));
+    }
+  }
+
   const body = el.closest('.lbdev-body');
   if (body) body.scrollTop = body.scrollHeight;
 }
@@ -247,7 +423,7 @@ function renderFlags() {
 }
 
 async function copyLog() {
-  const text = getEntries().map(r => `${fmtTime(r.t)} [${r.level}] ${r.msg}`).join('\n');
+  const text = getEntries().map(r => `[${fmtDate(r.t)} ${fmtTime(r.t)}] [${(r.level || 'info').toUpperCase()}] ${r.msg}`).join('\n');
   const btn = $('lbdev-copy');
   try {
     await navigator.clipboard.writeText(text);
