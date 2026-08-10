@@ -21,6 +21,7 @@ import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
 import { TIME_CONTROLS, TIME_LABELS, TIME_SHORT, createMoveTimer } from '../../shared/time-control.js';
 import { confirmEnabled, injectConfirmToggle } from '../../shared/move-confirm.js';
+import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
 
 const $ = (id) => document.getElementById(id);
 const eqp = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
@@ -42,16 +43,7 @@ let goboard = null;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-const SESSION_KEY = 'draughts_session';
-function saveSession(data) {
-  const raw = JSON.stringify(data);
-  try {
-    if (app.userId) { sessionStorage.setItem(SESSION_KEY, raw); localStorage.removeItem(SESSION_KEY); }
-    else { localStorage.setItem(SESSION_KEY, raw); sessionStorage.removeItem(SESSION_KEY); }
-  } catch { /* storage blocked */ }
-}
-function readSession() { try { return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY); } catch { return null; } }
-function clearSession() { try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ } }
+
 
 // ---- Landing + setup --------------------------------------------------------
 
@@ -216,7 +208,7 @@ async function enterRoom(code, playerIndex, name, room) {
   app.code = code; app.playerIndex = playerIndex; app.name = name; app.room = room;
   app.rematching = false; app.path = []; app.targets = []; app.staged = null;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
-  saveSession({ code, playerIndex, name });
+  saveSession(GAME_SLUG, { code, playerIndex, name }, app.userId);
 
   app.finishPersisted = room.status === 'finished';
   app.state = newGameState(room.seed);
@@ -295,7 +287,7 @@ function maybeNotifyTurn() { if (document.hidden && isMyTurn() && notifyEnabled(
 document.addEventListener('visibilitychange', () => { if (!document.hidden) clearTurnNotification(); postRoomVisibility(); });
 
 $('btn-leave').addEventListener('click', async () => {
-  clearSession(); clearTurnNotification();
+  clearSession(GAME_SLUG); clearTurnNotification();
   if (app.code != null && app.playerIndex != null && (app.room?.player_count ?? 0) >= 2 && app.state && !app.state.gameOver) {
     try { const room = await markPlayerLeft(app.code, app.playerIndex); if (room) app.conn?.broadcastRoom(room); } catch { /* ignore */ }
   }
@@ -336,9 +328,9 @@ async function tryResume() {
       return true;
     } catch { /* fall through to the stored session */ }
   }
-  const raw = readSession(); if (!raw) return false;
-  try { const { code, name } = JSON.parse(raw); const { room, playerIndex } = await joinRoom(code, name, app.userId); await enterRoom(code, playerIndex, name, room); return true; }
-  catch { clearSession(); return false; }
+  const session = readSession(GAME_SLUG); if (!session) return false;
+  try { const { code, name } = typeof session === 'string' ? JSON.parse(session) : session; const { room, playerIndex } = await joinRoom(code, name, app.userId); await enterRoom(code, playerIndex, name, room); return true; }
+  catch { clearSession(GAME_SLUG); return false; }
 }
 
 // ---- Incoming events --------------------------------------------------------

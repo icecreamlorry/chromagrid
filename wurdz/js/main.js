@@ -23,6 +23,7 @@ import {
 } from './notify.js';
 import { configReady, GAME_SLUG } from './config.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
+import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
 
 const $ = (id) => document.getElementById(id);
@@ -53,26 +54,7 @@ function esc(s) {
   ));
 }
 
-const SESSION_KEY = 'wurdz_session';
 
-// Guests keep the "resume this room" pointer in localStorage so they auto-return
-// to their game after a full browser close (they have no server-side games
-// list); signed-in players keep it tab-scoped in sessionStorage and rely on
-// their lobby. See shared/guest-id.js for the matching persistent guest id.
-function saveSession(data) {
-  const raw = JSON.stringify(data);
-  try {
-    if (app.userId) { sessionStorage.setItem(SESSION_KEY, raw); localStorage.removeItem(SESSION_KEY); }
-    else { localStorage.setItem(SESSION_KEY, raw); sessionStorage.removeItem(SESSION_KEY); }
-  } catch { /* storage blocked — resume just won't persist */ }
-}
-function readSession() {
-  try { return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY); }
-  catch { return null; }
-}
-function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-}
 
 // ---- Landing screen -----------------------------------------------------
 
@@ -418,7 +400,7 @@ async function enterRoom(code, playerIndex, name, room) {
   app.room = room;
   app.rematching = false;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
-  saveSession({ code, playerIndex, name });
+  saveSession(GAME_SLUG, { code, playerIndex, name }, app.userId);
 
   app.finishPersisted = room.status === 'finished';
   app.state = newGameState(room.seed);
@@ -561,7 +543,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 $('btn-leave').addEventListener('click', async () => {
-  clearSession();
+  clearSession(GAME_SLUG);
   clearTurnNotification();
   // Walking out of a live game: flag our seat so the opponent sees us as
   // offline (cleared automatically if we come back). Broadcasting the updated
@@ -629,15 +611,15 @@ async function tryResume() {
       return true;
     } catch { /* fall through to the stored session */ }
   }
-  const raw = readSession();
-  if (!raw) return false;
+  const session = readSession(GAME_SLUG);
+  if (!session) return false;
   try {
-    const { code, name } = JSON.parse(raw);
+    const { code, name } = typeof session === 'string' ? JSON.parse(session) : session;
     const { room, playerIndex } = await joinRoom(code, name, app.userId);
     await enterRoom(code, playerIndex, name, room);
     return true;
   } catch {
-    clearSession();
+    clearSession(GAME_SLUG);
     return false;
   }
 }

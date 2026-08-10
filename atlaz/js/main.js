@@ -27,29 +27,13 @@ import {
   registerServiceWorker, requestNotifications, isEnabled as notifyEnabled,
   subscribeToPush, notificationsSupported, notificationPermission,
 } from './notify.js';
+import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
 
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 5;
 const SESSION_KEY = 'atlaz_session';
 
-// Guests keep the "resume this room" pointer in localStorage so they auto-return
-// to their game after a full browser close (they have no server-side games
-// list); signed-in players keep it tab-scoped in sessionStorage and rely on
-// their lobby. See shared/guest-id.js for the matching persistent guest id.
-function saveSession(data) {
-  const raw = JSON.stringify(data);
-  try {
-    if (app.userId) { sessionStorage.setItem(SESSION_KEY, raw); localStorage.removeItem(SESSION_KEY); }
-    else { localStorage.setItem(SESSION_KEY, raw); sessionStorage.removeItem(SESSION_KEY); }
-  } catch { /* storage blocked — resume just won't persist */ }
-}
-function readSession() {
-  try { return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY); }
-  catch { return null; }
-}
-function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-}
+
 const COUNTDOWN_MS = 3000;
 const RESULT_MOVE_BASE = 10;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -256,7 +240,7 @@ async function enterRoom(code, seat, name, room) {
   $('room-code-text').textContent = code;
   $('room-code-chip').classList.remove('hidden');
   showScreen('game');
-  saveSession({ code, name });
+  saveSession(GAME_SLUG, { code, name }, app.userId);
   setPhase('config');
   renderAll();
 
@@ -279,7 +263,7 @@ async function leaveRoom() {
   if (app.code != null && app.seat != null && app.room && app.room.status !== 'finished') {
     try { const room = await markPlayerLeft(app.code, app.seat); if (room) app.conn?.broadcastRoom(room); } catch { /* best effort */ }
   }
-  clearSession();
+  clearSession(GAME_SLUG);
   resetGame();
   app.code = null; app.seat = null; app.room = null;
   if (app.user) { showScreen('lobby'); renderLobby(); } else showScreen('landing');
@@ -740,14 +724,14 @@ async function tryResume() {
       return true;
     } catch { /* fall through to the stored session */ }
   }
-  const raw = readSession();
-  if (!raw) return false;
+  const session = readSession(GAME_SLUG);
+  if (!session) return false;
   try {
-    const { code, name } = JSON.parse(raw);
+    const { code, name } = typeof session === 'string' ? JSON.parse(session) : session;
     const { room, playerIndex } = await joinRoom(code, name, app.userId);
     await enterRoom(code, playerIndex, name, room);
     return true;
-  } catch { clearSession(); return false; }
+  } catch { clearSession(GAME_SLUG); return false; }
 }
 
 async function boot() {
