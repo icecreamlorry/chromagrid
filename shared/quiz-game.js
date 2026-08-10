@@ -665,7 +665,9 @@ export function createQuizGame(cfg) {
     const urlCode = takeRoomParam();
     if (urlCode) {
       try {
-        const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
+        const roomPromise = joinRoom(urlCode, app.name, app.userId);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+        const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
         await enterRoom(urlCode, playerIndex, seatName(room, playerIndex) || 'Guest', room);
         return true;
       } catch { /* fall through to the stored session */ }
@@ -674,7 +676,9 @@ export function createQuizGame(cfg) {
     if (!session) return false;
     try {
       const { code, name } = typeof session === 'string' ? JSON.parse(session) : session;
-      const { room, playerIndex } = await joinRoom(code, name, app.userId);
+      const roomPromise = joinRoom(code, name, app.userId);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+      const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
       await enterRoom(code, playerIndex, name, room);
       return true;
     } catch { clearSession(cfg.slug); return false; }

@@ -1,18 +1,21 @@
-// dominoes/js/main.js — Dominoes controller matching Table Games group standards
+// dominoes/js/main.js — Dominoes application controller with full Table Games screen & lobby parity
 
 import { dealGame, canPlayTile, playTile, passTurn, drawFromBoneyard, replayMoves, hasPlayableTile, getPlaySide } from './engine.js';
 import { createDominoesUI } from './board.js';
-import { createRoom, joinRoom, fetchMoves, RoomConnection, seatName } from './net.js';
+import {
+  createRoom, joinRoom, fetchRoom, fetchMoves, fetchMyRooms, updateRoomStatus,
+  finishRoom, RoomConnection, triggerPush, seatName, userSeat, seatLeft, markPlayerLeft,
+} from './net.js';
 import { createRematch } from '../../shared/rematch.js';
 import { takeRoomParam, roomShareUrl } from '../../shared/deep-link.js';
 import { openHistory } from '../../shared/history.js';
 import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/dismissed-games.js';
-import { cachedUser, onAuthChange, displayName } from '../../shared/auth.js';
+import { cachedUser, onAuthChange, displayName, signOut } from '../../shared/auth.js';
 import { getGuestName, setGuestName } from '../../shared/guest-name.js';
 import { saveSession, readSession, clearSession } from '../../shared/game-session.js';
-import { TIME_CONTROLS, createMoveTimer } from '../../shared/time-control.js';
+import { TIME_CONTROLS, TIME_LABELS, createMoveTimer } from '../../shared/time-control.js';
 import { confirmEnabled, injectConfirmToggle } from '../../shared/move-confirm.js';
-import { GAME_SLUG } from './config.js';
+import { configReady, GAME_SLUG } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,9 +29,19 @@ let ui = null;
 let moveTimer = null;
 let setupCtx = null;
 let rematch = null;
+let lobbyPollTimer = null;
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
 
 function landingError(msg) {
   const el = $('landing-error');
+  if (el) el.textContent = msg || '';
+}
+
+function lobbyError(msg) {
+  const el = $('lobby-error');
   if (el) el.textContent = msg || '';
 }
 
@@ -43,13 +56,139 @@ function setStatus(msg) {
   if (el) el.textContent = msg || '';
 }
 
+// ---- Screen Navigation ----
+
+function showScreen(which) {
+  for (const id of ['screen-landing', 'screen-lobby', 'screen-game']) {
+    const el = $(id);
+    if (el) el.classList.toggle('hidden', id !== `screen-${which}`);
+  }
+  document.body.dataset.screen = which;
+  if (which !== 'lobby') stopLobbyPolling();
+}
+
+function applyAuthToUI() {
+  const btnLobby = $('btn-go-lobby');
+  if (btnLobby) btnLobby.classList.toggle('hidden', !app.user);
+  const lobbyName = $('lobby-name');
+  if (lobbyName && app.user) lobbyName.textContent = app.name;
+}
+
+function handleAuthChange(user) {
+  app.user = user;
+  app.userId = user?.id ?? null;
+  if (user) app.name = displayName(user);
+  applyAuthToUI();
+  if ($('screen-game')?.classList.contains('hidden')) {
+    if (user) {
+      showScreen('lobby');
+      renderLobby();
+    } else {
+      showScreen('landing');
+    }
+  }
+}
+
+// ---- Lobby ----
+
+function startLobbyPolling() {
+  stopLobbyPolling();
+  lobbyPollTimer = setInterval(() => {
+    if (!$('screen-lobby')?.classList.contains('hidden') && !document.hidden) {
+      renderLobby();
+    }
+  }, 5000);
+}
+
+function stopLobbyPolling() {
+  if (lobbyPollTimer) {
+    clearInterval(lobbyPollTimer);
+    lobbyPollTimer = null;
+  }
+}
+
+async function renderLobby() {
+  if (!app.userId) return;
+  startLobbyPolling();
+  const list = $('lobby-list');
+  if (!list) return;
+
+  let rooms;
+  try {
+    rooms = await fetchMyRooms(app.userId);
+  } catch (e) {
+    lobbyError(`Could not load your games (${e.message}).`);
+    return;
+  }
+
+  rooms = filterDismissed(app.userId, rooms);
+  if (!rooms.length) {
+    list.innerHTML = '<p class="lobby-empty muted">No games yet. Start one with <strong>New game</strong>, or join a friend\'s with their code.</p>';
+    return;
+  }
+
+  const summaries = await Promise.all(rooms.map(summarizeRoom));
+  list.innerHTML = '';
+  for (const s of summaries) {
+    list.appendChild(buildLobbyCard(s));
+  }
+}
+
+async function summarizeRoom(room) {
+  const myIndex = userSeat(room, app.userId);
+  const oppIndex = myIndex === 0 ? 1 : 0;
+  const oppName = seatName(room, oppIndex);
+  if (room.status === 'finished' && room.result) {
+    return { room, myIndex, oppIndex, oppName, state: { started: true, gameOver: true, winner: room.result.winner } };
+  }
+  let state = null;
+  try {
+    state = replayMoves(room.seed, await fetchMoves(room.code));
+  } catch {}
+  return { room, myIndex, oppIndex, oppName, state };
+}
+
+function buildLobbyCard({ room, myIndex, oppIndex, oppName, state }) {
+  const card = document.createElement('button');
+  card.className = 'lobby-game';
+
+  const isTurn = state && !state.gameOver && state.turn === myIndex;
+  const isOver = state && state.gameOver;
+
+  let tagHtml = '';
+  if (isOver) {
+    const win = state.winner === myIndex;
+    tagHtml = `<span class="dash-tag done">${win ? 'WIN' : 'LOSS'}</span>`;
+  } else if (isTurn) {
+    tagHtml = '<span class="dash-tag turn">YOUR TURN</span>';
+  } else {
+    tagHtml = '<span class="dash-tag">THEIR TURN</span>';
+  }
+
+  card.innerHTML = `
+    <div class="dash-body">
+      <div class="dash-game">${esc(GAME_SLUG.toUpperCase())} — vs ${esc(oppName || 'Opponent')}</div>
+      <div class="dash-line">Room Code: ${esc(room.code)}</div>
+    </div>
+    ${tagHtml}
+  `;
+
+  card.addEventListener('click', () => {
+    enterGameScreen(room.code, myIndex, app.name, room, false);
+  });
+
+  return card;
+}
+
+// ---- Setup & Dialogs ----
+
 function openSetup(name, userId, onError) {
   setupCtx = { name, userId, onError };
-  $('modal-setup').classList.remove('hidden');
+  $('modal-setup')?.classList.remove('hidden');
 }
 
 function closeSetup() {
-  $('modal-setup').classList.add('hidden');
+  $('modal-setup')?.classList.add('hidden');
   setupCtx = null;
 }
 
@@ -63,15 +202,16 @@ document.querySelectorAll('#setup-times .setup-time').forEach((btn) => {
 
 $('setup-cancel')?.addEventListener('click', closeSetup);
 
-// Copy invite link click handler on room code chip
 $('room-code-chip')?.addEventListener('click', async () => {
   if (!app.code) return;
   try {
     await navigator.clipboard.writeText(roomShareUrl(app.code));
     const text = $('room-code-text');
-    const orig = text.textContent;
-    text.textContent = 'COPIED!';
-    setTimeout(() => { text.textContent = orig; }, 1500);
+    if (text) {
+      const orig = text.textContent;
+      text.textContent = 'COPIED!';
+      setTimeout(() => { text.textContent = orig; }, 1500);
+    }
   } catch {}
 });
 
@@ -108,23 +248,23 @@ function updateUI() {
   }
 
   if (app.state.gameOver) {
-    $('gameover-overlay').classList.remove('hidden');
+    $('gameover-overlay')?.classList.remove('hidden');
     const titleEl = $('gameover-title');
     const detailEl = $('gameover-detail');
 
     if (app.state.winner === null) {
-      titleEl.textContent = 'GAME OVER — DRAW!';
-      detailEl.textContent = 'Game is blocked with equal remaining pips.';
+      if (titleEl) titleEl.textContent = 'GAME OVER — DRAW!';
+      if (detailEl) detailEl.textContent = 'Game is blocked with equal remaining pips.';
     } else if (app.state.winner === app.playerIndex) {
-      titleEl.textContent = 'VICTORY!';
-      detailEl.textContent = 'You emptied your hand / held lowest pips!';
+      if (titleEl) titleEl.textContent = 'VICTORY!';
+      if (detailEl) detailEl.textContent = 'You emptied your hand / held lowest pips!';
     } else {
-      titleEl.textContent = 'DEFEAT';
-      detailEl.textContent = 'Opponent emptied hand / held lowest pips.';
+      if (titleEl) titleEl.textContent = 'DEFEAT';
+      if (detailEl) detailEl.textContent = 'Opponent emptied hand / held lowest pips.';
     }
     setStatus('GAME OVER');
   } else {
-    $('gameover-overlay').classList.add('hidden');
+    $('gameover-overlay')?.classList.add('hidden');
     const turnName = isMyTurn ? 'Your turn' : `${seatName(app.room, app.state.turn) || 'Opponent'}'s turn`;
     setStatus(turnName);
   }
@@ -198,15 +338,13 @@ async function enterGameScreen(code, playerIndex, name, room, offline = false) {
   app.code = code; app.playerIndex = playerIndex; app.name = name; app.room = room;
   app.offlineSolo = offline;
 
-  $('screen-landing').classList.add('hidden');
-  $('screen-lobby').classList.add('hidden');
-  $('screen-game').classList.remove('hidden');
+  showScreen('game');
 
   if (code) {
-    $('room-code-text').textContent = code;
-    $('room-code-chip').classList.remove('hidden');
+    if ($('room-code-text')) $('room-code-text').textContent = code;
+    $('room-code-chip')?.classList.remove('hidden');
   } else {
-    $('room-code-chip').classList.add('hidden');
+    $('room-code-chip')?.classList.add('hidden');
   }
 
   saveSession(GAME_SLUG, { code, playerIndex, name, offline }, app.userId);
@@ -279,12 +417,12 @@ $('btn-create')?.addEventListener('click', () => {
 });
 
 $('btn-join')?.addEventListener('click', () => {
-  $('join-box').classList.toggle('hidden');
-  $('code-input').focus();
+  $('join-box')?.classList.toggle('hidden');
+  $('code-input')?.focus();
 });
 
 $('btn-join-go')?.addEventListener('click', async () => {
-  const code = $('code-input').value.trim().toUpperCase();
+  const code = $('code-input')?.value.trim().toUpperCase();
   if (!code) return;
   try {
     const { room, playerIndex } = await joinRoom(code, getPlayerName(), app.userId);
@@ -297,8 +435,12 @@ $('btn-join-go')?.addEventListener('click', async () => {
 $('btn-leave')?.addEventListener('click', () => {
   clearSession(GAME_SLUG);
   if (app.conn) { app.conn.close(); app.conn = null; }
-  $('screen-game').classList.add('hidden');
-  $('screen-landing').classList.remove('hidden');
+  if (app.user) {
+    showScreen('lobby');
+    renderLobby();
+  } else {
+    showScreen('landing');
+  }
 });
 
 $('btn-rematch')?.addEventListener('click', () => {
@@ -314,21 +456,29 @@ $('btn-lobby-history')?.addEventListener('click', () => {
   openHistory({ userId: app.userId, gameSlug: GAME_SLUG });
 });
 
-async function boot() {
-  onAuthChange((user) => {
-    app.user = user;
-    app.userId = user?.id || null;
-    app.name = user ? displayName(user) : getGuestName();
-  });
+$('btn-lobby-new')?.addEventListener('click', () => {
+  lobbyError('');
+  openSetup(app.name || getPlayerName(), app.userId, lobbyError);
+});
 
+$('btn-lobby-refresh')?.addEventListener('click', () => renderLobby());
+$('btn-go-lobby')?.addEventListener('click', () => {
+  showScreen('lobby');
+  renderLobby();
+});
+
+async function tryResumeWithTimeout() {
   const urlCode = takeRoomParam();
   if (urlCode) {
     try {
-      const { room, playerIndex } = await joinRoom(urlCode, getPlayerName(), app.userId);
+      const roomPromise = joinRoom(urlCode, getPlayerName(), app.userId);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+      const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
       await enterGameScreen(urlCode, playerIndex, getPlayerName(), room, false);
-      window.LBBoot?.done();
-      return;
-    } catch {}
+      return true;
+    } catch {
+      // Fall through to stored session or landing/lobby
+    }
   }
 
   const session = readSession(GAME_SLUG);
@@ -337,19 +487,40 @@ async function boot() {
       const s = typeof session === 'string' ? JSON.parse(session) : session;
       if (s.offline) {
         await enterGameScreen('SOLO', 0, s.name, null, true);
-        window.LBBoot?.done();
-        return;
+        return true;
       }
-      const { room, playerIndex } = await joinRoom(s.code, s.name, app.userId);
+      const roomPromise = joinRoom(s.code, s.name, app.userId);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+      const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
       await enterGameScreen(s.code, playerIndex, s.name, room, false);
-      window.LBBoot?.done();
-      return;
+      return true;
     } catch {
       clearSession(GAME_SLUG);
     }
   }
+  return false;
+}
 
-  $('screen-landing').classList.remove('hidden');
+async function boot() {
+  app.user = cachedUser();
+  app.userId = app.user?.id ?? null;
+  if (app.user) app.name = displayName(app.user);
+
+  applyAuthToUI();
+
+  onAuthChange(handleAuthChange);
+
+  const resumed = await tryResumeWithTimeout();
+
+  if (!resumed) {
+    if (app.user) {
+      showScreen('lobby');
+      renderLobby();
+    } else {
+      showScreen('landing');
+    }
+  }
+
   window.LBBoot?.done();
 }
 
