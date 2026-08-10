@@ -3,52 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>REVERSI // LB GAMES</title>
+  <title>Reversi // LB GAMES</title>
   <link rel="icon" type="image/svg+xml" href="../favicon.svg">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/table-game.css">
   <link rel="stylesheet" href="css/style.css">
   <script>
-    window.LB_CONFIG = {
-      gameSlug: 'reversi',
-      gameName: 'Reversi',
-      gameoverEvent: 'reversi:gameover',
-      defaultTheme: 'synth',
-    };
+    window.LB_CONFIG = { gameSlug: 'reversi', gameName: 'Reversi', history: true, daily: false, defaultTheme: 'synth' };
   </script>
   <script src="../shared/theme-boot.js"></script>
 </head>
 <body>
   <script src="../shared/boot.js"></script>
+
+  <!-- Landing Screen -->
+  <section id="screen-landing" class="screen">
+    <div class="landing-card">
+      <h1 class="logo">Reversi</h1>
+      <p class="tagline">Classic 8×8 disc flipping strategy — trap and flip your opponent's pieces.</p>
+      <div class="landing-buttons">
+        <button id="btn-create" class="btn-primary">New Game</button>
+        <button id="btn-join" class="btn-ghost">Join a Room</button>
+      </div>
+      <div id="join-box" class="join-box hidden">
+        <input id="code-input" class="field" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters">
+        <button id="btn-join-go" class="btn-primary">Join</button>
+      </div>
+      <p id="landing-error" class="error-text"></p>
+      <div id="account-bar"></div>
+    </div>
+  </section>
+
+  <!-- Lobby Screen -->
   <section id="screen-lobby" class="screen hidden"></section>
 
-  <div id="screen-game" class="screen">
+  <!-- Game Screen -->
+  <section id="screen-game" class="screen hidden">
     <header class="game-header">
-      <div class="gh-left">
-        <h1>REVERSI</h1>
-        <div class="subtitle">// TACTICAL FLIP //</div>
-      </div>
-      <div class="gh-right">
-        <span id="room-code-chip" class="chip hidden">ROOM: <strong id="room-code-text"></strong></span>
-        <button id="btn-leave" class="btn-ghost">LEAVE</button>
-      </div>
+      <span class="logo logo-small">Reversi</span>
+      <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
+      <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
+        </svg>
+      </button>
     </header>
 
     <div class="table">
-      <div class="player-panel opp">
-        <div class="pp-row pp-id"><span id="opp-name">Waiting...</span></div>
+      <div id="opp-panel" class="player-panel opp-panel">
+        <div class="pp-row pp-id">
+          <span id="opp-name" class="player-name">Opponent</span>
+        </div>
         <div class="pp-row pp-meta">
           <span class="score-pill">DISCS: <strong id="opp-discs">2</strong></span>
           <span id="opp-clock" class="clock">--:--</span>
         </div>
       </div>
 
-      <div id="board-container" class="board-box">
-        <div id="board" class="reversi-board"></div>
+      <div class="board-wrap">
+        <div id="board-container" class="board-box">
+          <div id="board" class="reversi-board"></div>
+        </div>
+
+        <div id="start-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="start-title">Ready to play?</h2>
+            <p id="start-versus">Reversi — Dark vs Light</p>
+            <p id="start-share" class="hidden">Share code <strong id="start-code"></strong> to invite a friend.</p>
+            <button id="btn-start" class="btn-primary">Start Game</button>
+          </div>
+        </div>
+
+        <div id="gameover-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="gameover-title">Game Over</h2>
+            <div id="gameover-detail" class="overlay-detail"></div>
+            <button id="btn-rematch" class="btn-primary">Rematch</button>
+          </div>
+        </div>
       </div>
 
-      <div class="player-panel me">
-        <div class="pp-row pp-id"><span id="my-name">You</span></div>
+      <div id="my-panel" class="player-panel my-panel">
+        <div class="pp-row pp-id">
+          <span id="my-name" class="player-name">You</span>
+        </div>
         <div class="pp-row pp-meta">
           <span class="score-pill">DISCS: <strong id="my-discs">2</strong></span>
           <span id="my-clock" class="clock">--:--</span>
@@ -57,9 +95,24 @@
 
       <div id="status" class="status-line"></div>
     </div>
+  </section>
+
+  <!-- Time Control Selection Modal -->
+  <div id="modal-setup" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Game Setup</h2>
+      <p id="setup-subtitle">Choose a per-move time limit:</p>
+      <div id="setup-times" class="setup-times">
+        <button class="btn-ghost setup-time" data-time="1m">1 MIN / MOVE</button>
+        <button class="btn-ghost setup-time" data-time="3m">3 MIN / MOVE</button>
+        <button class="btn-ghost setup-time" data-time="5m">5 MIN / MOVE</button>
+        <button class="btn-ghost setup-time" data-time="15m">15 MIN / MOVE</button>
+        <button class="btn-ghost setup-time" data-time="unlimited">NO TIMER</button>
+      </div>
+      <button id="setup-cancel" class="link-btn">Cancel</button>
+    </div>
   </div>
 
-  <script type="module" src="../shared/lobby-ui.js"></script>
   <script type="module" src="../shared/account-ui.js"></script>
   <script type="module" src="js/main.js"></script>
   <script type="module" src="../shared/devtools.js"></script>

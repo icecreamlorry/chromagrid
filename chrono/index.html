@@ -3,27 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CHRONO // LB GAMES</title>
+  <title>Chrono // LB GAMES</title>
   <link rel="icon" type="image/svg+xml" href="../favicon.svg">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/quiz-game.css">
   <link rel="stylesheet" href="css/style.css">
   <script>
-    window.LB_CONFIG = {
-      gameSlug: 'chrono',
-      gameName: 'Chrono',
-      defaultTheme: 'synth',
-    };
+    window.LB_CONFIG = { gameSlug: 'chrono', gameName: 'Chrono', history: true, daily: true, defaultTheme: 'synth' };
   </script>
   <script src="../shared/theme-boot.js"></script>
 </head>
 <body>
   <script src="../shared/boot.js"></script>
+
+  <!-- Landing Screen -->
+  <section id="screen-landing" class="screen">
+    <div class="card">
+      <h1 class="logo">CHRONO</h1>
+      <p class="tagline">// SORT THE AGES //</p>
+      <div class="row">
+        <button id="btn-create" class="btn-primary">CREATE ROOM</button>
+        <button id="btn-join" class="btn-ghost">JOIN BY CODE</button>
+      </div>
+      <div id="join-box" class="row hidden">
+        <input id="code-input" class="field" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters">
+        <button id="btn-join-go" class="btn-primary">JOIN</button>
+      </div>
+      <p id="landing-error" class="status-line"></p>
+      <div id="account-bar"></div>
+    </div>
+  </section>
+
+  <!-- Lobby Screen -->
   <section id="screen-lobby" class="screen hidden"></section>
 
-  <div id="chrono-stage" class="quiz-stage"></div>
+  <!-- Game Screen -->
+  <section id="screen-game" class="screen hidden">
+    <header class="bar game-bar">
+      <button id="room-code-chip" class="chip" title="Copy invite link">ROOM <strong id="room-code-text"></strong></button>
+      <span class="grow"></span>
+      <span id="mode-chip" class="chip mode-chip hidden">TIMELINE</span>
+      <span id="timer-chip" class="chip timer-chip hidden">0:00</span>
+      <button id="btn-leave" class="chip chip-icon" title="Leave" aria-label="Leave">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
+        </svg>
+      </button>
+    </header>
 
-  <script type="module" src="../shared/lobby-ui.js"></script>
+    <div id="chrono-stage" class="quiz-stage"></div>
+  </section>
+
   <script type="module" src="../shared/account-ui.js"></script>
   <script type="module" src="js/main.js"></script>
   <script type="module" src="../shared/devtools.js"></script>

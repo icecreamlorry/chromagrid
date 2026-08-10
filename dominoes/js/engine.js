@@ -42,6 +42,13 @@ export function canPlayTile(tile, leftEnd, rightEnd) {
   return tile[0] === leftEnd || tile[1] === leftEnd || tile[0] === rightEnd || tile[1] === rightEnd;
 }
 
+export function getPlaySide(tile, leftEnd, rightEnd) {
+  if (leftEnd === null && rightEnd === null) return 'right';
+  if (tile[1] === leftEnd || tile[0] === leftEnd) return 'left';
+  if (tile[0] === rightEnd || tile[1] === rightEnd) return 'right';
+  return 'right';
+}
+
 export function handPips(hand) {
   return hand.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
 }
@@ -53,7 +60,7 @@ export function hasPlayableTile(hand, leftEnd, rightEnd) {
 export function playTile(state, playerIndex, tileIdx, playSide) {
   if (state.gameOver || state.turn !== playerIndex) return state;
 
-  const hand = state.hands[playerIndex].slice();
+  const hand = state.hands[playerIndex] || [];
   if (tileIdx < 0 || tileIdx >= hand.length) return state;
 
   const tile = hand[tileIdx];

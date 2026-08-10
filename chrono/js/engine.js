@@ -1,6 +1,10 @@
 // chrono/js/engine.js — pure deterministic Chrono quiz engine
 
-import { seededShuffle, gradeOrder } from '../../shared/quiz-engine.js';
+import { seededShuffle, gradeOrder as quizGradeOrder } from '../../shared/quiz-engine.js';
+
+export function orderKey(item) {
+  return item ? item.year : 0;
+}
 
 export function buildRounds(dataset, seed, count = 10) {
   const shuffled = seededShuffle(dataset, seed);
@@ -15,4 +19,6 @@ export function buildRounds(dataset, seed, count = 10) {
   return rounds;
 }
 
-export { gradeOrder };
+export function gradeOrder(placedIds, datasetById) {
+  return quizGradeOrder(orderKey, placedIds, datasetById);
+}
