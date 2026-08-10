@@ -68,7 +68,6 @@ function updateUI() {
   const isMyTurn = app.state.turn === app.playerIndex && !app.state.gameOver;
   const myCanPlay = isMyTurn && hasPlayableTile(myHand, app.state.leftEnd, app.state.rightEnd);
 
-  // Show Draw / Pass buttons when appropriate
   const btnDraw = $('btn-draw');
   const btnPass = $('btn-pass');
 
@@ -126,7 +125,6 @@ function handleTileClick(tileIdx, tile) {
       app.conn.sendMove({ type: 'move', payload: { tileIdx, side } });
     }
 
-    // Auto bot turn in offline mode
     triggerBotIfNeeded();
   } catch (err) {
     console.error(err);
@@ -278,6 +276,7 @@ async function boot() {
     try {
       const { room, playerIndex } = await joinRoom(urlCode, getPlayerName(), app.userId);
       await enterGameScreen(urlCode, playerIndex, getPlayerName(), room, false);
+      window.LBBoot?.done();
       return;
     } catch {}
   }
@@ -288,10 +287,12 @@ async function boot() {
       const s = typeof session === 'string' ? JSON.parse(session) : session;
       if (s.offline) {
         await enterGameScreen('SOLO', 0, s.name, null, true);
+        window.LBBoot?.done();
         return;
       }
       const { room, playerIndex } = await joinRoom(s.code, s.name, app.userId);
       await enterGameScreen(s.code, playerIndex, s.name, room, false);
+      window.LBBoot?.done();
       return;
     } catch {
       clearSession(GAME_SLUG);
@@ -299,6 +300,7 @@ async function boot() {
   }
 
   $('screen-landing').classList.remove('hidden');
+  window.LBBoot?.done();
 }
 
 boot();

@@ -111,7 +111,6 @@ async function handleCellClick(r, c, idx) {
       await app.conn.sendMove({ type: 'move', payload: { r, c } });
     }
 
-    // Auto-bot play in offline solo mode
     if (app.offlineSolo && !app.state.gameOver && app.state.turn === 1) {
       setTimeout(() => {
         const botMoves = Array.from(legalMoves(app.state.board, 1).keys());
@@ -181,7 +180,6 @@ async function startNewGame(timeKey) {
     const room = await createRoom('reversi', name);
     await enterGameScreen(room.code, 0, name, room, false);
   } catch (err) {
-    // Offline fallback: start solo game immediately if server/network unavailable
     await enterGameScreen('SOLO', 0, name, null, true);
   }
 }
@@ -234,6 +232,7 @@ async function boot() {
     try {
       const { room, playerIndex } = await joinRoom(urlCode, getPlayerName(), app.userId);
       await enterGameScreen(urlCode, playerIndex, getPlayerName(), room, false);
+      window.LBBoot?.done();
       return;
     } catch {}
   }
@@ -244,18 +243,20 @@ async function boot() {
       const s = typeof session === 'string' ? JSON.parse(session) : session;
       if (s.offline) {
         await enterGameScreen('SOLO', 0, s.name, null, true);
+        window.LBBoot?.done();
         return;
       }
       const { room, playerIndex } = await joinRoom(s.code, s.name, app.userId);
       await enterGameScreen(s.code, playerIndex, s.name, room, false);
+      window.LBBoot?.done();
       return;
     } catch {
       clearSession(GAME_SLUG);
     }
   }
 
-  // Show landing screen by default
   $('screen-landing').classList.remove('hidden');
+  window.LBBoot?.done();
 }
 
 boot();
