@@ -63,6 +63,11 @@ Every subagent auditing a game MUST verify all 9 contracts:
 - `icons/` folder contains `icon.svg`, `apple-touch-icon.png`, `icon-192.png`, and `icon-512.png`.
 - HTML `<head>` includes PWA meta tags, `<link rel="manifest">`, `<meta name="theme-color">`, and `data-theme="maritime"`.
 
+### Contract 10: ES Module Export Signature Integrity
+- `js/config.js` re-exports `GAME_SLUG`, `GAME_NAME`, `configReady`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`.
+- `js/notify.js` exports `notificationsSupported`, `notificationPermission`, `isEnabled`, `subscribeToPush`, and `registerServiceWorker`.
+- Run `node test/exports.test.mjs` to automatically verify ES module named export compliance across all games.
+
 ---
 
 ## 🧪 E2E Simulation Test Requirements
