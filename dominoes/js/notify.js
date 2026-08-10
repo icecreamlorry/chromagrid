@@ -1,15 +1,19 @@
 // dominoes/js/notify.js — Push notification helper wrapper
 
-export function notificationsSupported() { return 'Notification' in window && 'serviceWorker' in navigator; }
-export function notificationPermission() { return notificationsSupported() ? Notification.permission : 'denied'; }
+export function notificationsSupported() { return typeof Notification !== 'undefined' && 'serviceWorker' in navigator; }
+export function notificationPermission() { return notificationsSupported() ? Notification.permission : 'unsupported'; }
+export function isMuted() { return localStorage.getItem('dominoes_notify_muted') === '1'; }
+export function setMuted(v) { localStorage.setItem('dominoes_notify_muted', v ? '1' : '0'); }
+export function isEnabled() { return notificationsSupported() && Notification.permission === 'granted' && !isMuted(); }
+export function pushSupported() { return false; }
 export async function requestNotifications() {
-  if (!notificationsSupported()) return 'denied';
-  return Notification.requestPermission();
+  if (!notificationsSupported()) return 'unsupported';
+  if (Notification.permission !== 'default') return Notification.permission;
+  try { return await Notification.requestPermission(); } catch { return Notification.permission; }
 }
 export async function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    try { return await navigator.serviceWorker.register('./sw.js'); } catch { return null; }
-  }
-  return null;
+  if (!notificationsSupported()) return null;
+  try { return await navigator.serviceWorker.register('./sw.js'); } catch { return null; }
 }
-export function isEnabled() { return notificationPermission() === 'granted'; }
+export async function subscribeToPush() { return null; }
+export async function showLocalNotification() { return null; }
