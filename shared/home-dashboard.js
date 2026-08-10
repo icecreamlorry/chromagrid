@@ -42,11 +42,15 @@ const ROOM_GAMES = [
   { slug: 'draughts', name: 'Draughts', href: 'draughts/', kind: 'replay' },
   { slug: 'backgammon', name: 'Backgammon', href: 'backgammon/', kind: 'replay' },
   { slug: 'rummikub', name: 'Rummikub', href: 'rummikub/', kind: 'replay' },
+  { slug: 'reversi', name: 'Reversi', href: 'reversi/', kind: 'replay' },
+  { slug: 'dominoes', name: 'Dominoes', href: 'dominoes/', kind: 'replay' },
+  { slug: 'chrono', name: 'Chrono', href: 'chrono/', kind: 'race' },
 ];
 
 const DAILY_GAMES = [
   { slug: 'chromagrid', name: 'Chromagrid', href: 'chromagrid/' },
   { slug: 'scramblr', name: 'Scramblr', href: 'scramblr/' },
+  { slug: 'chrono', name: 'Chrono', href: 'chrono/' },
 ];
 
 // Initials fallback shown behind the favicon (if the icon fails to load).

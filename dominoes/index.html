@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DOMINOES // LB GAMES</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="../shared/table-game.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.LB_CONFIG = {
+      gameSlug: 'dominoes',
+      gameName: 'Dominoes',
+      defaultTheme: 'synth',
+    };
+  </script>
+  <script src="../shared/theme-boot.js"></script>
+</head>
+<body>
+  <script src="../shared/boot.js"></script>
+  <section id="screen-lobby" class="screen hidden"></section>
+
+  <div id="screen-game" class="screen">
+    <header class="game-header">
+      <div class="gh-left">
+        <h1>DOMINOES</h1>
+        <div class="subtitle">// DOUBLE-SIX MATCH //</div>
+      </div>
+      <div class="gh-right">
+        <span id="room-code-chip" class="chip hidden">ROOM: <strong id="room-code-text"></strong></span>
+        <button id="btn-leave" class="btn-ghost">LEAVE</button>
+      </div>
+    </header>
+
+    <div class="table">
+      <div class="player-panel opp">
+        <div class="pp-row pp-id"><span id="opp-name">Opponent</span></div>
+        <div class="pp-row pp-meta">
+          <span class="score-pill">TILES: <strong id="opp-tiles">7</strong></span>
+          <span id="opp-clock" class="clock">--:--</span>
+        </div>
+      </div>
+
+      <div id="board-container" class="board-box dominoes-board">
+        <div id="chain" class="dominoes-chain"></div>
+      </div>
+
+      <div class="player-panel me">
+        <div class="pp-row pp-id"><span id="my-name">You</span></div>
+        <div class="pp-row pp-meta">
+          <span class="score-pill">BONEYARD: <strong id="boneyard-count">14</strong></span>
+          <span id="my-clock" class="clock">--:--</span>
+        </div>
+      </div>
+
+      <div id="my-rack" class="dominoes-rack"></div>
+      <div id="status" class="status-line"></div>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/lobby-ui.js"></script>
+  <script type="module" src="../shared/account-ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="../shared/devtools.js"></script>
+</body>
+</html>

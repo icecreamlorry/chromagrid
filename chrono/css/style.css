@@ -1,0 +1,55 @@
+.chrono-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.event-card {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--panel, rgba(8, 8, 24, 0.9));
+  border: 1px solid rgba(0, 245, 255, 0.25);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 245, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-body, sans-serif);
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.event-card:hover {
+  border-color: var(--cyan, #00f5ff);
+  transform: translateY(-1px);
+}
+
+.event-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--cyan, #00f5ff);
+}
+
+.event-cat {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.event-year {
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--yellow, #ffd23b);
+  border: 1px solid rgba(255, 210, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+}

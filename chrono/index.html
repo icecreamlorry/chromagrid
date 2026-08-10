@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CHRONO // LB GAMES</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="../shared/quiz-game.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.LB_CONFIG = {
+      gameSlug: 'chrono',
+      gameName: 'Chrono',
+      defaultTheme: 'synth',
+    };
+  </script>
+  <script src="../shared/theme-boot.js"></script>
+</head>
+<body>
+  <script src="../shared/boot.js"></script>
+  <section id="screen-lobby" class="screen hidden"></section>
+
+  <div id="chrono-stage" class="quiz-stage"></div>
+
+  <script type="module" src="../shared/lobby-ui.js"></script>
+  <script type="module" src="../shared/account-ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="../shared/devtools.js"></script>
+</body>
+</html>
