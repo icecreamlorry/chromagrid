@@ -90,11 +90,49 @@ Deno.serve(async (req) => {
 
     if (!recipientUserId && !anonSeatExists) return json({ sent: 0 });
 
-    const query = supabase.from('push_subscriptions').select('endpoint, subscription');
-    const { data: subs, error } = recipientUserId
-      ? await query.eq('user_id', recipientUserId)
-      : await query.eq('room_code', room_code).eq('player', player);
-    if (error) throw error;
+    // A signed-in user has one push_subscriptions row PER GAME they've opened
+    // notifications in (each game's service worker is its own subscription
+    // scope, even on the same browser) — querying by user_id alone would fan
+    // one event out into one OS notification per game ever opened. Collapse
+    // back down to one per real device: group by device_id (the shared
+    // per-browser id every subscribe call stamps, see push-device-id.js) and
+    // keep only the freshest row in each group. Rows predating that id
+    // (device_id is null) each count as their own device — best effort until
+    // their owner reopens a game and the row picks up a device_id.
+    let subs: { endpoint: string; subscription: unknown }[] = [];
+    let staleEndpoints: string[] = [];
+    if (recipientUserId) {
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('endpoint, subscription, device_id, created_at')
+        .eq('user_id', recipientUserId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const seenDevices = new Set<string>();
+      for (const row of data ?? []) {
+        const key = row.device_id || `endpoint:${row.endpoint}`;
+        if (seenDevices.has(key)) {
+          if (row.device_id) staleEndpoints.push(row.endpoint);
+          continue;
+        }
+        seenDevices.add(key);
+        subs.push({ endpoint: row.endpoint, subscription: row.subscription });
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('endpoint, subscription')
+        .eq('room_code', room_code)
+        .eq('player', player);
+      if (error) throw error;
+      subs = data ?? [];
+    }
+    // Best-effort cleanup of rows we know are superseded duplicates on the
+    // same device (an old game's subscription since a fresher one exists) —
+    // mirrors the 404/410 pruning below, just for a different kind of "gone".
+    if (staleEndpoints.length) {
+      await supabase.from('push_subscriptions').delete().in('endpoint', staleEndpoints);
+    }
 
     const clip = (s: unknown, n: number) => (typeof s === 'string' ? s.slice(0, n) : '');
     const payload = JSON.stringify({

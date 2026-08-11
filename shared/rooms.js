@@ -8,6 +8,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-config.js';
 import { supabase } from './supabaseClient.js';
 import { getGuestId } from './guest-id.js';
+import { getPushDeviceId } from './push-device-id.js';
 import { logError } from './devlog.js';
 
 export { supabase };
@@ -227,7 +228,11 @@ export async function fetchFinishedRooms(userId, gameSlug) {
 
 // Two modes:
 //   • Signed in  → pass { userId }: one subscription covers every game/seat
-//     the account occupies so notifications work across games.
+//     the account occupies so notifications work across games. Each game
+//     registers its own service worker scope, so the same browser still ends
+//     up with one row per game — p_device_id (shared per-browser, see
+//     push-device-id.js) is how the notify Edge Function collapses those back
+//     down to one push per physical device instead of one per game.
 //   • Anonymous  → pass { roomCode, player }: notified for that seat only.
 export async function savePushSubscription(subscription, { userId = null, roomCode = null, player = null, game } = {}) {
   // Goes through the save_push_subscription() RPC (see setup.sql) rather than a
@@ -244,6 +249,7 @@ export async function savePushSubscription(subscription, { userId = null, roomCo
     p_game: game,
     p_room_code: userId ? null : roomCode,
     p_player: userId ? null : player,
+    p_device_id: getPushDeviceId(),
   });
   if (error) {
     logError('savePushSubscription failed:', error.message || error);

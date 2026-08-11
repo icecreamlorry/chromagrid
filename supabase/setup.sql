@@ -137,6 +137,7 @@ create table if not exists push_subscriptions (
   player int,                     -- 0 = host, 1 = guest (null when user-routed)
   user_id uuid references auth.users (id) on delete cascade,
   game text,                      -- which game this device opted in from
+  device_id text,                 -- shared per-browser id (push-device-id.js)
   endpoint text unique not null,  -- the push endpoint (stable per device)
   subscription jsonb not null,    -- full PushSubscription JSON
   created_at timestamptz not null default now()
@@ -147,6 +148,12 @@ alter table push_subscriptions add column if not exists user_id uuid references 
 alter table push_subscriptions add column if not exists game text;
 alter table push_subscriptions alter column room_code drop not null;
 alter table push_subscriptions alter column player drop not null;
+-- Migrate an existing table that predates the per-browser device id: without
+-- it, a signed-in user's row exists once PER GAME (each game's service worker
+-- is its own subscription scope), so one push event fanned out to every game
+-- they'd ever opened notifications in instead of once per real device.
+alter table push_subscriptions add column if not exists device_id text;
+create index if not exists push_sub_device_idx on push_subscriptions (user_id, device_id);
 
 create index if not exists push_sub_room_idx on push_subscriptions (room_code, player);
 create index if not exists push_sub_user_idx on push_subscriptions (user_id);
@@ -198,12 +205,14 @@ grant select, delete on table push_subscriptions to service_role;
 -- signed-in user from the JWT (auth.uid()) instead of trusting the caller, so a
 -- device can't be attached to someone else's account. Signed-in devices are
 -- user-routed (room_code/player forced null); guests are seat-routed.
+drop function if exists save_push_subscription(text, jsonb, text, text, int);
 create or replace function save_push_subscription(
   p_endpoint     text,
   p_subscription jsonb,
   p_game         text,
   p_room_code    text default null,
-  p_player       int  default null
+  p_player       int  default null,
+  p_device_id    text default null
 ) returns void
 language plpgsql
 security definer
@@ -212,12 +221,13 @@ as $$
 declare
   uid uuid := auth.uid();
 begin
-  insert into push_subscriptions (endpoint, subscription, game, user_id, room_code, player)
+  insert into push_subscriptions (endpoint, subscription, game, user_id, room_code, player, device_id)
   values (
     p_endpoint, p_subscription, p_game,
     uid,
     case when uid is null then p_room_code end,
-    case when uid is null then p_player end
+    case when uid is null then p_player end,
+    p_device_id
   )
   on conflict (endpoint) do update
     set subscription = excluded.subscription,
@@ -225,11 +235,12 @@ begin
         user_id      = excluded.user_id,
         room_code    = excluded.room_code,
         player       = excluded.player,
+        device_id    = excluded.device_id,
         created_at   = now();
 end;
 $$;
 
-grant execute on function save_push_subscription(text, jsonb, text, text, int) to anon, authenticated;
+grant execute on function save_push_subscription(text, jsonb, text, text, int, text) to anon, authenticated;
 
 -- ---- N-player rooms (shared rooms layer) --------------------------------
 --
