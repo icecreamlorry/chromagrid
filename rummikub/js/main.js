@@ -246,8 +246,9 @@ function renderNotifyBtns() {
   const item = $('menu-notify'); if (!item) return;
   if (!notificationsSupported()) { item.classList.add('hidden'); return; }
   item.classList.remove('hidden');
-  const on = notifyEnabled(); item.classList.toggle('on', on);
-  $('menu-notify-label').textContent = notificationPermission() === 'denied' ? 'Turn alerts: blocked' : (on ? 'Turn alerts: on' : 'Turn alerts: off');
+  const on = notifyEnabled();
+  const label = $('menu-notify-label');
+  if (label) label.textContent = notificationPermission() === 'denied' ? 'Turn alerts: blocked' : (on ? 'Turn alerts: on' : 'Turn alerts: off');
 }
 async function onToggleNotify() {
   if (!notificationsSupported()) return;
