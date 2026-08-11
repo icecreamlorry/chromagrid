@@ -655,7 +655,8 @@ export function createQuizGame(cfg) {
 
   function revealNotify() {
     const btn = $('btn-notify-lobby');
-    const show = cfg.notificationsSupported() && cfg.notificationPermission() !== 'denied' && !cfg.notifyEnabled();
+    if (!btn) return;
+    const show = !!(cfg.notificationsSupported?.() && cfg.notificationPermission?.() !== 'denied' && !cfg.notifyEnabled?.());
     btn.classList.toggle('hidden', !show);
   }
 

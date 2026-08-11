@@ -16,7 +16,7 @@ import { filterDismissed, dismissGame, makeDismissControl } from '../../shared/d
 import { getGuestName } from '../../shared/guest-name.js';
 import {
   registerServiceWorker, requestNotifications, isEnabled as notifyEnabled,
-  subscribeToPush,
+  subscribeToPush, notificationsSupported, notificationPermission,
 } from './notify.js';
 
 const modeMeta = {
@@ -81,6 +81,9 @@ createQuizGame({
   dismissGame,
   makeDismissControl,
   registerServiceWorker,
+  requestNotifications,
   notifyEnabled,
   subscribeToPush,
+  notificationsSupported,
+  notificationPermission,
 });
