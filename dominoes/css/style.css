@@ -20,36 +20,57 @@
 .dm-tile.dm-v .dm-divider { width: 76%; height: 1px; background: #b9ad92; }
 .dm-tile.dm-h .dm-divider { width: 1px; height: 76%; background: #b9ad92; }
 
-/* ---- The played chain ----------------------------------------------------- */
+/* ---- The played chain -------------------------------------------------------
+   Tiles are laid out and positioned by board.js's layoutChain (JS-computed
+   absolute placement, boustrophedon rows with a rotated corner tile turning
+   into the next row) — this box never scrolls sideways, at any chain length,
+   by construction (see dominoes/test/chain-layout.test.mjs). It grows downward
+   instead; #screen-game (shared/table-game.css) owns the page's vertical
+   scroll, same as every other table game — this box must not scroll itself. */
 .dm-chain {
   width: 100%; min-height: 84px;
-  overflow-x: auto; overflow-y: hidden;
+  overflow: hidden; /* a defensive backstop only — layoutChain guarantees this never triggers */
   padding: 12px 10px;
   border-radius: 8px;
   background: var(--sq-dark);
   border: 0.5px solid var(--sq-edge);
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35);
 }
-.dm-chain-inner { display: flex; align-items: center; gap: 3px; width: max-content; }
+.dm-chain-inner { position: relative; width: 100%; }
+.dm-chain-tile { position: absolute; transition: left 0.15s ease, top 0.15s ease; }
 .dm-empty { margin: 0; font-size: 14px; }
 .dm-boneyard { margin: 8px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
 
-/* ---- Which end? ----------------------------------------------------------- */
+/* The two ends a dragged tile can be dropped on (board.js stamps these on the
+   chain-index-0 and chain-index-last tile elements, wherever the snake layout
+   put them — NOT simply "leftmost/rightmost on screen"). Two non-colour cues
+   (a dashed outline shape-change, plus a scale-up) so this reads without
+   relying on the highlight colour alone (CLAUDE.md §3). */
+[data-chain-end].drag-over, #chain.drag-over {
+  outline: 3px dashed var(--cyan-dark, #58c0ff); outline-offset: 3px;
+  transform: scale(1.06);
+}
+
+/* ---- Which end? (tap-flow fallback for a tile that fits both ends) -------- */
 .dm-ends {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   margin-top: 10px; flex-wrap: wrap;
 }
 .dm-ends-label { color: var(--muted); font-size: 14px; }
 
-/* ---- Your rack ------------------------------------------------------------ */
+/* ---- Your rack -------------------------------------------------------------
+   touch-action:none is load-bearing, not decorative: without it a touch-drag
+   starting on a tile ALSO gets read by the browser as a page-scroll gesture,
+   racing the pointermove handler in main.js (the exact bug fixed in Chrono's
+   drag-to-order list — see CLAUDE.md). */
 .dm-rack {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 8px; margin-top: 12px; min-height: 74px;
 }
 .dm-rack-tile {
   position: relative;
-  background: none; border: none; padding: 2px; cursor: pointer;
-  border-radius: 7px; line-height: 0;
+  background: none; border: none; padding: 2px; cursor: grab;
+  border-radius: 7px; line-height: 0; touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 /* Only a light dim: while it isn't your turn EVERY tile is disabled, and you
@@ -68,7 +89,26 @@
 .dm-rack-tile.selected .dm-tile { transform: translateY(-4px); }
 .dm-rack-tile .dm-tile { transition: transform 0.12s ease; }
 
+/* The empty slot left behind while its tile is being dragged — same footprint
+   as a real tile so the rack doesn't reflow/jump mid-drag, dashed so it reads
+   as "gone from here for now" rather than a broken tile. */
+.dm-rack-placeholder {
+  display: inline-block; width: 34px; height: 66px;
+  border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 5px;
+  box-sizing: border-box;
+}
+
+/* The tile that floats above the pointer during a drag. */
+.dm-ghost {
+  position: fixed; left: 0; top: 0; z-index: 60;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  opacity: 0.96;
+}
+
 @media (max-width: 420px) {
   .dm-tile.dm-v { width: 30px; height: 58px; }
   .dm-tile.dm-h { width: 58px; height: 30px; }
+  .dm-rack-placeholder { width: 30px; height: 58px; }
 }

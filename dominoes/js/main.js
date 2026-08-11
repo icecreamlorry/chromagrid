@@ -1,7 +1,7 @@
 import {
   newGameState, applyMove, replayMoves, legalPlays, mustDraw, canPass, handPips,
 } from './engine.js';
-import { createDominoesUI } from './board.js';
+import { createDominoesUI, tileHtml } from './board.js';
 import {
   createRoom, joinRoom, fetchRoom, fetchMoves, fetchMyRooms, updateRoomStatus,
   finishRoom, RoomConnection, triggerPush, seatName, userSeat, seatLeft, markPlayerLeft, supabase,
@@ -27,8 +27,9 @@ const $ = (id) => document.getElementById(id);
 const app = {
   user: null, userId: null, name: null, code: null, playerIndex: null,
   room: null, state: null, conn: null,
-  picked: null,          // { idx, tile, sides } — tile chosen, awaiting a side
+  picked: null,          // { idx, tile, sides } — tile chosen (tap flow), awaiting a side
   staged: null,          // { tile, side } awaiting Confirm
+  drag: null,            // in-progress rack-tile drag, or null — see "Drag and drop"
   confirmMoves: true,
   oppOnline: false, connMode: 'db', pendingMoves: new Map(),
   timeKey: 'unlimited', turnAnchorMs: 0, finishPersisted: false,
@@ -235,6 +236,11 @@ async function enterRoom(code, playerIndex, name, room) {
 function ensureUI() {
   if (ui) return;
   ui = createDominoesUI($('chain'), $('my-rack'), { onTile: onRackTile, onEnd: onChooseEnd });
+  // Drag to pick up + place in one gesture (tile floats above the pointer).
+  // Tap (above) stays the baseline input; this layers on top of it rather
+  // than replacing it — see the "Table games default to drag-and-drop"
+  // memory note for why every pick-up-and-place table game should have both.
+  $('my-rack').addEventListener('pointerdown', onRackPointerDown);
 }
 
 // ---- Notifications ----------------------------------------------------------
@@ -420,6 +426,103 @@ function chooseSide(idx, tile, side) {
   }
 }
 
+// ---- Drag and drop -----------------------------------------------------------
+// Reuses the exact same chooseSide() the tap flow calls — dragging is just a
+// faster way to reach the same (idx, tile, side) decision in one gesture
+// instead of two taps, not a separate code path. The rack tile itself carries
+// data-idx/data-sides (stamped by board.js's renderRack), so this needs no
+// engine imports of its own.
+
+const DRAG_LIFT = (pt) => (pt === 'touch' ? 46 : 6); // px the tile rides above the finger, so it isn't hidden under it
+const DRAG_THRESHOLD = 8;
+
+function dragSourceAt(e) {
+  if (app.picked || app.staged || app.drag) return null;
+  if (e.pointerType === 'mouse' && e.button !== 0) return null;
+  const btn = e.target.closest('.dm-rack-tile');
+  if (!btn || btn.disabled) return null;
+  const idx = Number(btn.dataset.idx);
+  const hand = app.state?.hands?.[app.playerIndex] || [];
+  const tile = hand[idx];
+  const sides = (btn.dataset.sides || '').split(',').filter(Boolean);
+  if (!tile || !sides.length) return null;
+  return { idx, tile, sides };
+}
+function onRackPointerDown(e) {
+  const src = dragSourceAt(e);
+  if (!src) return;
+  app.drag = { ...src, startX: e.clientX, startY: e.clientY, pt: e.pointerType, pointerId: e.pointerId, active: false, ghost: null };
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', onDragEnd);
+  window.addEventListener('pointercancel', onDragCancel);
+}
+function onDragMove(e) {
+  const d = app.drag;
+  if (!d || e.pointerId !== d.pointerId) return;
+  if (!d.active) {
+    if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
+    d.active = true;
+    d.ghost = makeGhost(d.tile);
+    document.body.appendChild(d.ghost);
+    renderAll(); // shows the empty placeholder slot in the rack for d.idx
+  }
+  positionGhost(d.ghost, e.clientX, e.clientY, d.pt);
+  highlightDropTarget(e.clientX, e.clientY);
+  e.preventDefault();
+}
+function onDragEnd(e) {
+  const d = app.drag;
+  if (!d || e.pointerId !== d.pointerId) return;
+  const wasActive = d.active, x = e.clientX, y = e.clientY, pt = d.pt;
+  endDrag();
+  if (!wasActive) return; // never left the tap threshold — its own click handler deals with it
+  const side = dropSideAt(x, y, pt, d.sides);
+  if (side) chooseSide(d.idx, d.tile, side);
+  else renderAll(); // dropped in the void — snap back to the rack
+}
+function onDragCancel() { endDrag(); renderAll(); }
+function endDrag() {
+  window.removeEventListener('pointermove', onDragMove);
+  window.removeEventListener('pointerup', onDragEnd);
+  window.removeEventListener('pointercancel', onDragCancel);
+  clearDropHighlight();
+  app.drag?.ghost?.remove();
+  app.drag = null;
+}
+function makeGhost(tile) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = tileHtml(tile, { orientation: 'v', cls: 'dm-ghost' });
+  return wrap.firstElementChild;
+}
+function positionGhost(g, x, y, pt) { if (g) { g.style.left = `${x}px`; g.style.top = `${y - DRAG_LIFT(pt)}px`; } }
+
+// Which end (if any) is under the FLOATING tile (pointer position minus the
+// lift, so it drops where it visually looks like it's landing), restricted to
+// the sides this tile is actually legal on.
+function dropSideAt(x, y, pt, sides) {
+  const el = document.elementFromPoint(x, y - DRAG_LIFT(pt));
+  if (!el) return null;
+  if (!(app.state?.chain?.length)) {
+    // Empty chain: the whole box is the target for the forced opening lead.
+    return el.closest('#chain') ? sides[0] : null;
+  }
+  // A one-tile chain stamps data-chain-end="both" (see board.js) rather than
+  // "left"/"right" — match that too, or the second legal side is undroppable.
+  if (sides.includes('left') && el.closest('[data-chain-end="left"], [data-chain-end="both"]')) return 'left';
+  if (sides.includes('right') && el.closest('[data-chain-end="right"], [data-chain-end="both"]')) return 'right';
+  return null;
+}
+function highlightDropTarget(x, y) {
+  clearDropHighlight();
+  const side = dropSideAt(x, y, app.drag.pt, app.drag.sides);
+  if (!side) return;
+  if (!(app.state?.chain?.length)) { $('chain')?.classList.add('drag-over'); return; }
+  document.querySelectorAll(`[data-chain-end="${side}"], [data-chain-end="both"]`).forEach((el) => el.classList.add('drag-over'));
+}
+function clearDropHighlight() {
+  document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+}
+
 $('btn-confirm').addEventListener('click', () => {
   const s = app.staged; if (!s) return;
   app.staged = null;
@@ -525,6 +628,7 @@ function renderChainAndRack() {
     playableSides: playable,
     selected: app.picked ? app.picked.idx : null,
     interactive: isMyTurn() && !app.staged,
+    draggingIdx: app.drag?.active ? app.drag.idx : null,
   });
   ui.renderEnds(s, { choosing: !!app.picked });
 
