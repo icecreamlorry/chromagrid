@@ -1,4 +1,4 @@
-// test/browser-click.test.mjs — Static & Dynamic DOM Binding Auditor for LB Games
+// test/browser-click.test.mjs — Static & Dynamic DOM Binding and Asset Auditor for LB Games
 
 import fs from 'fs';
 import path from 'path';
@@ -13,7 +13,9 @@ const games = [
   'scramblr', 'splitz', 'chromagrid', 'lexicorp', 'wurdz', 'framez'
 ];
 
-// Standard DOM IDs injected dynamically by shared scripts (lobby-ui.js, account-ui.js, quiz-game.js, table-game.css)
+const REQUIRED_ICON_FILES = ['icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
+
+// Standard DOM IDs injected dynamically by shared scripts
 const INJECTED_DYNAMIC_IDS = new Set([
   'account-bar', 'landing-name-input', 'account-line', 'btn-login', 'btn-logout',
   'btn-go-lobby', 'btn-lobby-new', 'btn-lobby-join', 'btn-lobby-join-go',
@@ -28,17 +30,27 @@ const INJECTED_DYNAMIC_IDS = new Set([
 
 let totalErrors = 0;
 
-console.log('Running DOM ID & Button Click Binding Auditor...\n');
+console.log('Running DOM ID, Asset, and Button Binding Auditor...\n');
 
 games.forEach((game) => {
   const htmlPath = path.join(rootDir, game, 'index.html');
   const mainJsPath = path.join(rootDir, game, 'js', 'main.js');
+  const iconsDir = path.join(rootDir, game, 'icons');
 
   if (!fs.existsSync(htmlPath)) return;
 
+  // 1. Verify PWA Icon Files
+  REQUIRED_ICON_FILES.forEach((iconFile) => {
+    const iconPath = path.join(iconsDir, iconFile);
+    if (!fs.existsSync(iconPath)) {
+      console.error(`❌ [${game}/icons] Missing required icon file '${iconFile}'`);
+      totalErrors++;
+    }
+  });
+
   const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
-  // Extract all static IDs present in the HTML file
+  // Extract all static IDs present in HTML
   const staticIds = new Set();
   const idRegex = /id=["']([^"']+)["']/g;
   let match;
@@ -46,14 +58,12 @@ games.forEach((game) => {
     staticIds.add(match[1]);
   }
 
-  // Combined set of valid IDs in HTML or injected dynamically
   const validIds = new Set([...staticIds, ...INJECTED_DYNAMIC_IDS]);
 
   if (fs.existsSync(mainJsPath)) {
     const jsContent = fs.readFileSync(mainJsPath, 'utf8');
 
-    // Find all unsafe property accesses on $(id) without optional chaining or null checks:
-    // e.g. $('missing-id').textContent or $('missing-id').classList or $('missing-id').disabled
+    // Find all unsafe property accesses on $(id) without null checks
     const unsafePropRegex = /\$\(['"]([^'"]+)['"]\)\.(textContent|innerText|innerHTML|classList|style|disabled|value|focus|addEventListener)/g;
     let propMatch;
 
@@ -69,8 +79,8 @@ games.forEach((game) => {
 });
 
 if (totalErrors > 0) {
-  console.error(`\n❌ DOM Auditor found ${totalErrors} unsafe DOM binding errors!`);
+  console.error(`\n❌ DOM & Asset Auditor found ${totalErrors} errors!`);
   process.exit(1);
 } else {
-  console.log('✅ All games pass DOM ID & Button Click Binding Audit cleanly (0 unsafe DOM bindings)!');
+  console.log('✅ All games pass DOM ID, Asset, & Button Binding Audit cleanly (0 errors)!');
 }
