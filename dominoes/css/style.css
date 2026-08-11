@@ -78,11 +78,25 @@
    outline and the ▲ marker, not by fading the tile out. */
 .dm-rack-tile:disabled { cursor: default; opacity: 0.88; }
 
-/* Playable is signalled by a DASHED outline plus a ▲ marker — a shape change,
-   legible without colour (CLAUDE.md §3). */
-.dm-rack-tile.playable { outline: 2px dashed var(--cyan-dark, #58c0ff); outline-offset: 2px; }
+/* Playable is signalled by a DASHED ring plus a ▲ marker — a shape change,
+   legible without colour (CLAUDE.md §3). The ring is a real `border` on a
+   ::after box, not `outline` — verified live: the tile sits exactly centered
+   in its button (measured all 4 gaps = 2px), but Chromium's outline+
+   border-radius rounding is an approximation and spaced the dashes unevenly
+   around the corners. A `border` on its own box does not have that problem;
+   inset -4px keeps the ring at the same 4px the old outline-offset+width sat
+   at, so tiles don't change size. */
+.dm-rack-tile.playable::after {
+  content: '';
+  position: absolute; inset: -4px;
+  border: 2px dashed var(--cyan-dark, #58c0ff);
+  border-radius: 9px;
+  pointer-events: none;
+}
+/* Clears the ring's outer edge (4px out) with a few px of daylight — this was
+   tuned against the old `outline` (4px out) and, unchanged, overlapped it. */
 .dm-playable-mark {
-  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
   font-size: 11px; line-height: 1; color: var(--cyan-dark, #58c0ff);
 }
 .dm-rack-tile.selected { outline: 3px solid var(--cyan-dark, #58c0ff); outline-offset: 2px; }
