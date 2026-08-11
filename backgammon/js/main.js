@@ -214,7 +214,10 @@ async function enterRoom(code, playerIndex, name, room) {
   $('room-code-text').textContent = code;
   renderNotifyBtns(); refreshPushSub(); renderAll(); announceLastMove(); startClockTicker();
 }
-function ensureBoard() { if (goboard) return; goboard = createBoard($('board'), { onPoint, onRoll: startRoll }); }
+function ensureBoard() {
+  if (goboard) return;
+  goboard = createBoard($('board'), { onPoint, onRoll: startRoll, draggable: isDragSource, dragTargets: dragTargetsFor, onDrop });
+}
 
 // ---- Notifications ----------------------------------------------------------
 
@@ -467,6 +470,29 @@ function applyStep(source, to) {
   app.selected = app.work.bar[seat] > 0 ? 'bar' : null;
   if (!app.confirmMoves && app.maxDice > 0 && app.steps.length === app.maxDice) { doneTurn(); return; }
   renderAll();
+}
+
+// ---- Drag and drop (board.js queries these before/at a checker drag) -------
+// Pure — never mutate app state — so board.js can safely call them at
+// pointerdown time to decide whether a press even COULD start a drag, and
+// live while the pointer moves to know the legal drop set. Mirrors the exact
+// eligibility check already inlined in onPoint's "select a new source"
+// branch, extracted rather than duplicated with different logic.
+function isDragSource(t) {
+  if (!isMyTurn() || !app.work || !app.rolled || app.rolling || app.rolledPairOnly) return false;
+  const seat = app.playerIndex;
+  if (app.work.bar[seat] > 0) return t === 'bar';
+  if (t === 'bar' || t === 'off') return false;
+  return ownerAt(app.work.board, t) === seat && workSteps().some((s) => s.from === t);
+}
+function dragTargetsFor(t) { return workSteps().filter((s) => s.from === t).map((s) => s.to); }
+// A drag's (from, to) is unambiguous by construction — apply it directly
+// rather than through onPoint's two-tap disambiguation, which resolves
+// against app.selected (a PRIOR tap) that a fresh drag gesture doesn't have
+// and must not inherit (see the comment on this in board.js).
+function onDrop(from, to) {
+  if (!isDragSource(from) || !dragTargetsFor(from).includes(to)) return;
+  applyStep(from, to);
 }
 $('btn-undo').addEventListener('click', () => { if (!app.steps.length) return; app.steps.pop(); rebuildWork(); renderAll(); });
 $('btn-done').addEventListener('click', doneTurn);

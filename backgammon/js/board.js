@@ -24,10 +24,11 @@ function el(name, attrs = {}) {
   return e;
 }
 
-export function createBoard(container, { onPoint, onRoll } = {}) {
+export function createBoard(container, { onPoint, onRoll, draggable, dragTargets, onDrop } = {}) {
   let flipped = false;
   let interactive = true;
   let view = { board: Array(24).fill(0), bar: [0, 0], off: [0, 0] };
+  let drag = null;   // in-progress checker drag, or null — see "Drag and drop" below
 
   const svg = el('svg', { class: 'bgboard', xmlns: SVGNS, viewBox: `0 0 ${TOTAL_W} ${TOTAL_H}` });
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -64,8 +65,10 @@ export function createBoard(container, { onPoint, onRoll } = {}) {
     }
 
     // Highlight FILLS on source / target / selected points, drawn UNDER the
-    // checkers so a tinted point reads as a wash behind the piece.
-    const hi = view.highlights || {};
+    // checkers so a tinted point reads as a wash behind the piece. While a
+    // drag is in progress this shows the SAME selected+targets shape a tap
+    // would (see onDragMove below) rather than whatever main.js last rendered.
+    const hi = (drag && drag.moved) ? { selected: drag.from, targets: drag.targets } : (view.highlights || {});
     for (const i of hi.sources || []) markPoint(i, 'bg-src');
     for (const t of hi.targets || []) {
       if (t === 'off') markOff('bg-tgt');
@@ -196,6 +199,7 @@ export function createBoard(container, { onPoint, onRoll } = {}) {
   }
 
   svg.addEventListener('pointerup', (e) => {
+    if (drag) return; // a drag gesture in progress handles its own release below
     if (!interactive) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     // Before the dice are rolled the whole board is one big "roll" button, so
@@ -207,6 +211,85 @@ export function createBoard(container, { onPoint, onRoll } = {}) {
     const t = targetFromEvent(e);
     if (t != null) onPoint?.(t);
   });
+
+  // ---- Drag and drop ---------------------------------------------------------
+  // A real backgammon checker is picked up and set down by hand — this mirrors
+  // that directly, layered on top of the tap flow above rather than replacing
+  // it. draggable(t)/dragTargets(t) are pure queries into main.js's current
+  // legal-move state (never mutate anything); onDrop(from,to) is the ONLY
+  // thing that commits a step, calling the exact same applyStep() the tap
+  // flow's second tap already uses.
+  //
+  // A drag can only ever START from a point draggable(t) approves, so unlike
+  // the tap flow (which must disambiguate "this tap completes the existing
+  // selection" vs "this tap starts a new one" — see main.js's onPoint), a
+  // drag's (from, to) pair is unambiguous by construction: whatever you
+  // physically picked up is what you're placing. If the drag never actually
+  // moves (a press-and-release in place), it's just a tap — handled by
+  // onPoint(from) exactly as before, so short taps are byte-for-byte
+  // unchanged from pre-drag behaviour.
+  const DRAG_THRESHOLD = 8;
+  const DRAG_LIFT = (pt) => (pt === 'touch' ? 46 : 6); // px the checker rides above the finger
+
+  function checkerSeatAt(t) {
+    if (t === 'bar') return view.bar[0] > 0 ? 0 : 1;
+    return view.board[t] > 0 ? 0 : 1;
+  }
+  function makeGhost(seat) {
+    const wrap = document.createElement('div');
+    wrap.className = 'bg-ghost';
+    wrap.innerHTML = `<svg viewBox="0 0 1 1" width="56" height="56">`
+      + `<circle cx="0.5" cy="0.5" r="0.46" class="bg-checker ${seat === 0 ? 'light' : 'dark'}"/>`
+      + `<circle cx="0.5" cy="0.5" r="0.3" class="bg-checker-ridge ${seat === 0 ? 'light' : 'dark'}"/>`
+      + `</svg>`;
+    return wrap;
+  }
+  function positionGhost(g, x, y, pt) { if (g) { g.style.left = `${x}px`; g.style.top = `${y - DRAG_LIFT(pt)}px`; } }
+
+  svg.addEventListener('pointerdown', (e) => {
+    if (!interactive) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (view.diceState === 'idle' || view.diceState === 'rolling') return; // that tap rolls / is ignored, not a drag
+    const t = targetFromEvent(e);
+    if (t == null || !draggable?.(t)) return; // not mine to pick up — let the tap handler above deal with the release
+    drag = {
+      from: t, targets: dragTargets?.(t) || [],
+      startX: e.clientX, startY: e.clientY, pointerId: e.pointerId, pt: e.pointerType,
+      moved: false, ghost: null,
+    };
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragUp);
+    window.addEventListener('pointercancel', onDragCancel);
+  });
+  function onDragMove(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    if (!drag.moved) {
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+      drag.moved = true;
+      drag.ghost = makeGhost(checkerSeatAt(drag.from));
+      document.body.appendChild(drag.ghost);
+      draw(); // switch the highlight overlay to this drag's selected+targets
+    }
+    positionGhost(drag.ghost, e.clientX, e.clientY, drag.pt);
+    e.preventDefault();
+  }
+  function onDragUp(e) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const { from, moved, targets, pt } = drag;
+    endDrag();
+    if (!moved) { onPoint?.(from); return; } // never left the tap threshold
+    const t = targetFromEvent({ clientX: e.clientX, clientY: e.clientY - DRAG_LIFT(pt) });
+    if (t != null && targets.includes(t)) { onDrop?.(from, t); return; }
+    draw(); // missed — snap back, clearing the drag highlight overlay
+  }
+  function onDragCancel() { endDrag(); draw(); }
+  function endDrag() {
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragUp);
+    window.removeEventListener('pointercancel', onDragCancel);
+    drag?.ghost?.remove();
+    drag = null;
+  }
 
   return {
     svg,

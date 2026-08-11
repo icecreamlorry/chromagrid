@@ -115,3 +115,14 @@
   0%, 100% { stroke: #6dffab; opacity: 0.85; }
   50% { stroke: #e0ffee; opacity: 1; }
 }
+
+/* The checker that floats above the pointer during a drag (board.js). Reuses
+   .bg-checker/.bg-checker-ridge (defined above, unscoped) so it's pixel-for-
+   pixel the same look as a checker on the board — just a free-floating copy. */
+.bg-ghost {
+  position: fixed; left: 0; top: 0; z-index: 60;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  opacity: 0.96;
+}
