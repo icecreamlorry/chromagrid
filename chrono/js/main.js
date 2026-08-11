@@ -19,13 +19,19 @@ import {
   subscribeToPush, notificationsSupported, notificationPermission,
 } from './notify.js';
 
-const modeMeta = {
-  timeline: { name: 'Timeline', prompt: 'Sort events chronologically:' }
-};
+export function modeMeta(id) {
+  const modes = {
+    timeline: { id: 'timeline', name: 'Timeline', prompt: 'Sort events chronologically:' }
+  };
+  return modes[id] || modes.timeline;
+}
 
-const diffMeta = {
-  medium: { name: 'Standard', desc: '10 Rounds' }
-};
+export function diffMeta(id) {
+  const diffs = {
+    medium: { id: 'medium', name: 'Standard', desc: '10 Rounds' }
+  };
+  return diffs[id] || diffs.medium;
+}
 
 function scoreOf(result) {
   return result?.score ?? 0;
