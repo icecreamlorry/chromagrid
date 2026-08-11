@@ -1,4 +1,14 @@
+/* The stage owns its own internal scroll, contained within .board-wrap
+   (shared/quiz-game.css: position:relative; overflow:hidden) — mirrors
+   flagz/css/style.css's .flag-stage exactly. Before this fix the element's
+   actual class (chrono/index.html) didn't match either this selector or any
+   shared one, so it had NO scroll containment at all: enough order-rows to
+   exceed the viewport pushed the whole PAGE taller instead of scrolling
+   internally, and a touch-drag on a row fought the browser's page-scroll
+   gesture instead of being contained by it. See .order-row below for the
+   other half of that same bug. */
 .chrono-stage {
+  position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6,7 +16,7 @@
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px calc(16px + env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
 }
 
 .event-card {
@@ -31,6 +41,23 @@
   transform: translateY(-1px);
 }
 
+/* Draggable order rows (chrono/js/modes.js gives each row BOTH classes:
+   class="order-row event-card"). .event-card above supplies the shared
+   panel look; touch-action:none is the actual fix for "drag scrolls the
+   page" — without it a touch-drag starting on a row is ALSO interpreted by
+   the browser as a page-scroll gesture, racing our pointer handlers. See
+   shared/quiz-game.css's .order-row.dragging/.good/.wrong modifiers and
+   flagz/css/style.css's .order-row for the reference pattern this mirrors.
+   position:relative is what makes that dragging rule's z-index take effect
+   (z-index is a no-op on a statically positioned box) so the lifted row
+   renders above its neighbours instead of sliding behind them. */
+.order-row {
+  touch-action: none;
+  position: relative;
+}
+
+.order-year-slot { flex: 0 0 auto; }
+
 .event-title {
   font-weight: 700;
   font-size: 0.9rem;
@@ -53,3 +80,21 @@
   padding: 2px 8px;
   border-radius: 4px;
 }
+
+/* End-of-round review rows (renderReview in modes.js). shared/quiz-game.css
+   only supplies the .good/.wrong colour variants — same gap as .order-row
+   above, just cosmetic rather than functional: without this the rows stack
+   as bare unstyled blocks instead of a name-left, mark-right panel row. */
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel, rgba(8, 8, 24, 0.9));
+  border: 1px solid rgba(0, 245, 255, 0.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.review-name { flex: 1 1 auto; font-family: var(--font-body, sans-serif); font-size: 0.82rem; }
+
+.review-mark { flex: 0 0 auto; font-weight: 700; font-size: 1rem; color: #fff; }
