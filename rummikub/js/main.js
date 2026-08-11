@@ -213,10 +213,13 @@ async function createChallengeWithTime(friend, timeKey) {
 // ---- Entering / leaving -----------------------------------------------------
 
 async function enterRoom(code, playerIndex, name, room) {
-  app.code = code; app.playerIndex = playerIndex; app.name = name; app.room = room;
+  // The room is the authority on who occupies this seat. A stored session can
+  // carry a stale name (or one from a different identity), and showing that
+  // instead would label you as someone else.
+  app.code = code; app.playerIndex = playerIndex; app.name = seatName(room, playerIndex) || name; app.room = room;
   app.rematching = false; app.work = null; app.held = null; app.present = new Set(); app.lastDrawn = null; app.drag = null;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
-  saveSession({ code, playerIndex, name });
+  saveSession({ code, playerIndex, name: app.name });
 
   app.finishPersisted = room.status === 'finished';
   app.state = newGameState(room.seed);
