@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="maritime">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-  <title>Reversi // LB GAMES</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reversi</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#1c2733">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Reversi">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/table-game.css">
   <link rel="stylesheet" href="css/style.css">
@@ -22,17 +22,17 @@
 <body>
   <script src="../shared/boot.js"></script>
 
-  <!-- Landing Screen -->
+  <!-- Landing -->
   <section id="screen-landing" class="screen">
     <div class="landing-card">
       <h1 class="logo">Reversi</h1>
-      <p class="tagline">Classic 8×8 disc flipping strategy — trap and flip your opponent's pieces.</p>
+      <p class="tagline">Outflank your opponent and flip the board — over a coffee or over days.</p>
       <div class="landing-buttons">
         <button id="btn-create" class="btn-primary">New Game</button>
         <button id="btn-join" class="btn-ghost">Join a Room</button>
       </div>
       <div id="join-box" class="join-box hidden">
-        <input id="code-input" class="field" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters">
+        <input id="code-input" type="text" maxlength="6" placeholder="Room code" autocomplete="off">
         <button id="btn-join-go" class="btn-primary">Join</button>
       </div>
       <p id="landing-error" class="error-text"></p>
@@ -40,14 +40,16 @@
     </div>
   </section>
 
-  <!-- Lobby Screen -->
+  <!-- Lobby -->
   <section id="screen-lobby" class="screen hidden"></section>
 
-  <!-- Game Screen -->
+  <!-- Game -->
   <section id="screen-game" class="screen hidden">
     <header class="game-header">
       <span class="logo logo-small">Reversi</span>
       <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
+      <button id="btn-draw" class="chip chip-button hidden" title="Offer a draw">½ Draw</button>
+      <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Forfeit this game">Resign</button>
       <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
@@ -58,65 +60,119 @@
     <div class="table">
       <div id="opp-panel" class="player-panel opp-panel">
         <div class="pp-row pp-id">
-          <span id="opp-name" class="player-name">Opponent</span>
+          <span id="opp-online" class="online-dot offline" title="offline"></span>
+          <span id="opp-name" class="player-name">Waiting for opponent…</span>
         </div>
         <div class="pp-row pp-meta">
-          <span class="score-pill">DISCS: <strong id="opp-discs">2</strong></span>
-          <span id="opp-clock" class="clock">--:--</span>
+          <span id="opp-turn" class="turn-marker hidden">their turn</span>
+          <span id="opp-discs" class="material"></span>
+          <span id="opp-clock" class="clock"></span>
         </div>
       </div>
 
       <div class="board-wrap">
-        <div id="board-container" class="board-box">
-          <div id="board" class="reversi-board"></div>
+        <div id="board" class="board"></div>
+
+        <div id="draw-banner" class="draw-banner hidden">
+          <span id="draw-banner-text">Your opponent offers a draw.</span>
+          <span class="draw-banner-btns">
+            <button id="btn-draw-accept" class="btn-primary">Accept</button>
+            <button id="btn-draw-decline" class="btn-ghost">Decline</button>
+          </span>
         </div>
 
         <div id="start-overlay" class="board-overlay hidden">
           <div class="overlay-card">
             <h2 id="start-title">Ready to play?</h2>
-            <p id="start-versus">Reversi — Dark vs Light</p>
-            <p id="start-share" class="hidden">Share code <strong id="start-code"></strong> to invite a friend.</p>
-            <button id="btn-start" class="btn-primary">Start Game</button>
+            <p id="start-time" class="start-time"></p>
+            <p id="start-versus"></p>
+            <p id="start-share" class="hidden">Share the room code <strong id="start-code"></strong> with a friend to begin.</p>
+            <button id="btn-start" class="btn-primary hidden">Start Game</button>
+            <p id="start-waiting" class="muted hidden">Waiting for the host to start the game…</p>
           </div>
         </div>
 
         <div id="gameover-overlay" class="board-overlay hidden">
           <div class="overlay-card">
-            <h2 id="gameover-title">Game Over</h2>
-            <div id="gameover-detail" class="overlay-detail"></div>
+            <h2 id="gameover-title"></h2>
+            <div id="gameover-detail"></div>
             <button id="btn-rematch" class="btn-primary">Rematch</button>
           </div>
         </div>
       </div>
 
-      <div id="my-panel" class="player-panel my-panel">
+      <div class="player-panel my-panel">
         <div class="pp-row pp-id">
-          <span id="my-name" class="player-name">You</span>
+          <span id="my-online" class="online-dot online" title="Connected"></span>
+          <span id="my-name" class="player-name"></span>
         </div>
         <div class="pp-row pp-meta">
-          <span class="score-pill">DISCS: <strong id="my-discs">2</strong></span>
-          <span id="my-clock" class="clock">--:--</span>
+          <span id="my-turn" class="turn-marker hidden">your turn</span>
+          <span id="my-discs" class="material"></span>
+          <span id="my-clock" class="clock"></span>
         </div>
       </div>
 
-      <div id="status" class="status-line"></div>
+      <p id="status-line" class="status-line"></p>
+
+      <div class="controls">
+        <button id="btn-confirm" class="btn-primary hidden">Confirm move</button>
+        <button id="btn-cancel" class="btn-ghost hidden">Cancel</button>
+      </div>
     </div>
   </section>
 
-  <!-- Time Control Selection Modal -->
-  <div id="modal-setup" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <h2>Game Setup</h2>
-      <p id="setup-subtitle">Choose a per-move time limit:</p>
+  <!-- New-game setup: time per move -->
+  <div id="modal-setup" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2>New game</h2></div>
+      <p id="setup-subtitle" class="muted">How long does each player get per move?</p>
       <div id="setup-times" class="setup-times">
-        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer</span></button>
-        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Correspondence</span></button>
-        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>Daily pace</span></button>
-        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Evening games</span></button>
-        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual pace</span></button>
-        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast blitz</span></button>
+        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer — play over days</span></button>
+        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Relaxed correspondence</span></button>
+        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>A move or two a day</span></button>
+        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Same-evening games</span></button>
+        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual, sit-down pace</span></button>
+        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast and sharp</span></button>
       </div>
-      <button id="setup-cancel" class="link-btn">Cancel</button>
+      <div class="confirm-buttons">
+        <button id="setup-cancel" class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation dialog -->
+  <div id="modal-confirm" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2 id="rv-confirm-title">Are you sure?</h2></div>
+      <p id="rv-confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="rv-confirm-cancel" class="btn-ghost">Cancel</button>
+        <button id="rv-confirm-ok" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-card modal-help-card">
+      <div class="modal-head"><h2>How to play</h2><button id="help-close" class="modal-close">&times;</button></div>
+      <div class="help-body">
+        <section class="help-section"><h3>The idea</h3>
+          <p>Reversi (Othello) is played on an 8×8 board. <strong>Dark ●</strong> moves first. When the board can take no more moves, whoever has the most discs wins.</p></section>
+        <section class="help-section"><h3>Placing &amp; flipping</h3>
+          <p>You may only play where your disc <strong>outflanks</strong> the opponent: place it so that one or more unbroken lines of their discs sit between your new disc and another of yours — horizontally, vertically or diagonally. Every disc you bracket <strong>flips</strong> to your colour. A square that flips nothing is not a legal move; the legal ones are marked with a dashed ring.</p></section>
+        <section class="help-section"><h3>Skipped turns</h3>
+          <p>If you have no legal move, your turn is <strong>skipped automatically</strong> and your opponent plays again — you don't need to do anything. When <em>neither</em> side can move, the game ends and the discs are counted.</p></section>
+        <section class="help-section"><h3>Which side am I?</h3>
+          <p>Your colour is shown beside your name — <strong>Dark ●</strong> (filled centre) or <strong>Light ○</strong> (open ring). The board is oriented so your discs read the same way every game.</p></section>
+        <section class="help-section"><h3>Per-move timer</h3>
+          <p>The host picks how long each side gets <strong>per move</strong> — from 1 minute to 3 days, or <strong>Unlimited</strong>. Run out on your move and you lose on time.</p></section>
+        <section class="help-section"><h3>Confirm moves</h3>
+          <p>By default moves are <strong>staged</strong> — tap a square to preview the flips, then press <strong>Confirm</strong>. Turn it off in the menu to play the instant you tap.</p></section>
+        <section class="help-section"><h3>Offline, leaving &amp; resigning</h3>
+          <p>An opponent going <strong>offline</strong> is fine; play resumes when they return. <strong>Leave</strong> exits to your games list; <strong>Resign</strong> gives up the game. Offer a <strong>½ Draw</strong> any time.</p></section>
+      </div>
     </div>
   </div>
 

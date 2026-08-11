@@ -1,70 +1,71 @@
-.dominoes-board {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--cb-dark, #0d1e26);
-  border: 1px solid rgba(0, 245, 255, 0.2);
-  border-radius: 6px;
-  min-height: 240px;
-  padding: 16px;
-  overflow-x: auto;
-}
+/* Dominoes TILE + CHAIN rendering only. Layout, panels, overlays, modals, theme
+   colours and body font come from shared/shared.css + shared/table-game.css. */
 
-.dominoes-chain {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-
-.domino-tile {
-  width: 44px;
-  height: 80px;
-  background: #fdfbf7;
-  border: 1px solid #111;
+/* ---- A single tile --------------------------------------------------------
+   Ivory face with dark pips: a physical-object colour, not a themed surface.
+   Meaning is never carried by colour — pip PATTERNS carry the value and every
+   tile has an aria-label (see board.js). */
+.dm-tile {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f4efe2;
+  border: 1px solid #b9ad92;
   border-radius: 5px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.5);
-  cursor: pointer;
-  user-select: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  color: #111;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  flex: none;
+}
+.dm-tile.dm-v { flex-direction: column; width: 34px; height: 66px; }
+.dm-tile.dm-h { flex-direction: row; width: 66px; height: 34px; }
+.dm-half { display: block; width: 100%; height: 100%; flex: 1 1 auto; min-width: 0; min-height: 0; }
+.dm-pip { fill: #23292f; }
+.dm-tile.dm-v .dm-divider { width: 76%; height: 1px; background: #b9ad92; }
+.dm-tile.dm-h .dm-divider { width: 1px; height: 76%; background: #b9ad92; }
+
+/* ---- The played chain ----------------------------------------------------- */
+.dm-chain {
+  width: 100%; min-height: 84px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 12px 10px;
+  border-radius: 8px;
+  background: var(--sq-dark);
+  border: 0.5px solid var(--sq-edge);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.dm-chain-inner { display: flex; align-items: center; gap: 3px; width: max-content; }
+.dm-empty { margin: 0; font-size: 14px; }
+.dm-boneyard { margin: 8px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* ---- Which end? ----------------------------------------------------------- */
+.dm-ends {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 10px; flex-wrap: wrap;
+}
+.dm-ends-label { color: var(--muted); font-size: 14px; }
+
+/* ---- Your rack ------------------------------------------------------------ */
+.dm-rack {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 12px; min-height: 74px;
+}
+.dm-rack-tile {
   position: relative;
+  background: none; border: none; padding: 2px; cursor: pointer;
+  border-radius: 7px; line-height: 0;
+  -webkit-tap-highlight-color: transparent;
 }
+.dm-rack-tile:disabled { cursor: default; opacity: 0.55; }
 
-.domino-tile:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 12px rgba(0, 245, 255, 0.4);
+/* Playable is signalled by a DASHED outline plus a ▲ marker — a shape change,
+   legible without colour (CLAUDE.md §3). */
+.dm-rack-tile.playable { outline: 2px dashed var(--cyan-dark, #58c0ff); outline-offset: 2px; }
+.dm-playable-mark {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; line-height: 1; color: var(--cyan-dark, #58c0ff);
 }
+.dm-rack-tile.selected { outline: 3px solid var(--cyan-dark, #58c0ff); outline-offset: 2px; }
+.dm-rack-tile.selected .dm-tile { transform: translateY(-4px); }
+.dm-rack-tile .dm-tile { transition: transform 0.12s ease; }
 
-.domino-tile.playable {
-  outline: 2px solid var(--cyan, #00f5ff);
-  box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
-}
-
-.domino-half {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-ui, sans-serif);
-  font-weight: 900;
-  font-size: 1.2rem;
-}
-
-.domino-divider {
-  height: 2px;
-  background: #333;
-  width: 88%;
-  margin: 0 auto;
-}
-
-.dominoes-rack {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  padding: 12px;
-  overflow-x: auto;
-  min-height: 96px;
+@media (max-width: 420px) {
+  .dm-tile.dm-v { width: 30px; height: 58px; }
+  .dm-tile.dm-h { width: 58px; height: 30px; }
 }

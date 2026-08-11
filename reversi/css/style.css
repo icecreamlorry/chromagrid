@@ -1,68 +1,39 @@
-.reversi-board {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-  gap: 2px;
-  background: var(--cb-edge, #0f2520);
-  border: 4px solid var(--cb-edge, #0f2520);
-  border-radius: 6px;
-  width: 100%;
-  aspect-ratio: 1;
-}
+/* Reversi BOARD rendering only. Layout, panels, overlays, modals, theme colours
+   and body font come from shared/shared.css + shared/table-game.css. */
 
-.reversi-cell {
-  background: var(--cb-dark, #163d33);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  border-radius: 2px;
+.reversiboard {
+  width: 100%; height: auto; display: block; aspect-ratio: 1;
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  border: 0.5px solid var(--sq-edge);
+  touch-action: none; overflow: visible;
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
 }
+.reversiboard text { user-select: none; -webkit-user-select: none; }
+.reversiboard.locked { cursor: default; }
+.reversiboard:not(.locked) { cursor: pointer; }
 
-.reversi-cell.valid::after {
-  content: '';
-  width: 25%;
-  height: 25%;
-  border-radius: 50%;
-  background: var(--cyan, #00f5ff);
-  opacity: 0.5;
-  box-shadow: 0 0 8px var(--cyan, #00f5ff);
-}
+/* The felt is one flat colour (unlike a chequerboard) with a ruled grid. */
+.rv-sq { fill: var(--sq-dark); }
+.rv-grid { stroke: var(--sq-edge); stroke-width: 0.015; opacity: 0.7; }
+.rv-coord { font-size: 0.2px; fill: var(--cb-coord); font-weight: 700; opacity: 0.85; pointer-events: none; }
 
-.reversi-cell.valid:hover::after {
-  opacity: 0.9;
-  transform: scale(1.3);
-}
+/* Discs. Dark and light differ in lightness AND in glyph (filled centre vs open
+   ring), so the board still reads correctly in greyscale — see board.js. */
+.rv-piece { pointer-events: none; }
+.rv-disc-shadow { fill: rgba(0, 0, 0, 0.35); }
+.rv-piece.dark .rv-disc { fill: #23292f; stroke: #0d1114; stroke-width: 0.03; }
+.rv-piece.dark .rv-disc-glyph { fill: #6f7d8c; }
+.rv-piece.light .rv-disc { fill: #f4efe2; stroke: #b9ad92; stroke-width: 0.03; }
+.rv-piece.light .rv-disc-glyph { fill: none; stroke: #8d8571; stroke-width: 0.05; }
 
-.disc {
-  width: 82%;
-  height: 82%;
-  border-radius: 50%;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
+/* Just-flipped discs get a brief ring so you can see what your move did. */
+.rv-piece.flipped .rv-disc { stroke: #f2c14e; stroke-width: 0.06; }
 
-.disc.dark {
-  background: radial-gradient(circle at 35% 35%, #444, #111);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.6);
-  border: 1px solid rgba(255,255,255,0.15);
-}
+.rv-last { fill: #f2c14e; opacity: 0.32; pointer-events: none; }
 
-.disc.light {
-  background: radial-gradient(circle at 35% 35%, #fff, #ddd);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-  border: 1px solid rgba(0,0,0,0.2);
-}
-
-.disc.flip-anim {
-  animation: discFlip 0.3s ease-in-out;
-}
-
-@keyframes discFlip {
-  0%   { transform: scale(1) rotateY(0deg); }
-  50%  { transform: scale(1.15) rotateY(90deg); }
-  100% { transform: scale(1) rotateY(0deg); }
+/* Legal-move hint: a DASHED open ring — a different shape from a played disc,
+   not merely a different colour. */
+.rv-target {
+  fill: none; stroke: #58c0ff; stroke-width: 0.05;
+  stroke-dasharray: 0.16 0.12; opacity: 0.9; pointer-events: none;
 }

@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="maritime">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-  <title>Dominoes // LB GAMES</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dominoes</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#1c2733">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Dominoes">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="../shared/table-game.css">
   <link rel="stylesheet" href="css/style.css">
@@ -22,17 +22,17 @@
 <body>
   <script src="../shared/boot.js"></script>
 
-  <!-- Landing Screen -->
+  <!-- Landing -->
   <section id="screen-landing" class="screen">
     <div class="landing-card">
       <h1 class="logo">Dominoes</h1>
-      <p class="tagline">Classic Double-Six tile matching — connect ends and empty your rack.</p>
+      <p class="tagline">Match the ends, empty your rack — the classic block-and-draw game.</p>
       <div class="landing-buttons">
         <button id="btn-create" class="btn-primary">New Game</button>
         <button id="btn-join" class="btn-ghost">Join a Room</button>
       </div>
       <div id="join-box" class="join-box hidden">
-        <input id="code-input" class="field" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters">
+        <input id="code-input" type="text" maxlength="6" placeholder="Room code" autocomplete="off">
         <button id="btn-join-go" class="btn-primary">Join</button>
       </div>
       <p id="landing-error" class="error-text"></p>
@@ -40,14 +40,16 @@
     </div>
   </section>
 
-  <!-- Lobby Screen -->
+  <!-- Lobby -->
   <section id="screen-lobby" class="screen hidden"></section>
 
-  <!-- Game Screen -->
+  <!-- Game -->
   <section id="screen-game" class="screen hidden">
     <header class="game-header">
       <span class="logo logo-small">Dominoes</span>
       <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
+      <button id="btn-offer-draw" class="chip chip-button hidden" title="Offer a draw">½ Draw</button>
+      <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Forfeit this game">Resign</button>
       <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
@@ -58,59 +60,131 @@
     <div class="table">
       <div id="opp-panel" class="player-panel opp-panel">
         <div class="pp-row pp-id">
-          <span id="opp-name" class="player-name">Opponent</span>
+          <span id="opp-online" class="online-dot offline" title="offline"></span>
+          <span id="opp-name" class="player-name">Waiting for opponent…</span>
         </div>
         <div class="pp-row pp-meta">
-          <span class="score-pill">TILES: <strong id="opp-tiles">7</strong></span>
-          <span id="opp-clock" class="clock">--:--</span>
+          <span id="opp-turn" class="turn-marker hidden">their turn</span>
+          <span id="opp-tiles" class="material"></span>
+          <span id="opp-clock" class="clock"></span>
         </div>
       </div>
 
       <div class="board-wrap">
-        <div id="board-container" class="board-box dominoes-board">
-          <div id="chain" class="dominoes-chain"></div>
+        <div id="chain" class="dm-chain" aria-label="Tiles in play"></div>
+
+        <p class="dm-boneyard">Boneyard: <strong id="boneyard-count">0</strong></p>
+
+        <div id="dm-ends" class="dm-ends hidden">
+          <span class="dm-ends-label">Play it on:</span>
+          <button id="dm-end-left" class="btn-ghost">◀ left</button>
+          <button id="dm-end-right" class="btn-ghost">right ▶</button>
+        </div>
+
+        <div id="draw-banner" class="draw-banner hidden">
+          <span id="draw-banner-text">Your opponent offers a draw.</span>
+          <span class="draw-banner-btns">
+            <button id="btn-draw-accept" class="btn-primary">Accept</button>
+            <button id="btn-draw-decline" class="btn-ghost">Decline</button>
+          </span>
+        </div>
+
+        <div id="start-overlay" class="board-overlay hidden">
+          <div class="overlay-card">
+            <h2 id="start-title">Ready to play?</h2>
+            <p id="start-time" class="start-time"></p>
+            <p id="start-versus"></p>
+            <p id="start-share" class="hidden">Share the room code <strong id="start-code"></strong> with a friend to begin.</p>
+            <button id="btn-start" class="btn-primary hidden">Start Game</button>
+            <p id="start-waiting" class="muted hidden">Waiting for the host to start the game…</p>
+          </div>
         </div>
 
         <div id="gameover-overlay" class="board-overlay hidden">
           <div class="overlay-card">
-            <h2 id="gameover-title">Game Over</h2>
-            <div id="gameover-detail" class="overlay-detail"></div>
+            <h2 id="gameover-title"></h2>
+            <div id="gameover-detail"></div>
             <button id="btn-rematch" class="btn-primary">Rematch</button>
           </div>
         </div>
       </div>
 
-      <div id="my-panel" class="player-panel my-panel">
+      <div id="my-rack" class="dm-rack" aria-label="Your tiles"></div>
+
+      <div class="player-panel my-panel">
         <div class="pp-row pp-id">
-          <span id="my-name" class="player-name">You</span>
+          <span id="my-online" class="online-dot online" title="Connected"></span>
+          <span id="my-name" class="player-name"></span>
         </div>
         <div class="pp-row pp-meta">
-          <span class="score-pill">BONEYARD: <strong id="boneyard-count">14</strong></span>
-          <span id="my-clock" class="clock">--:--</span>
-          <button id="btn-draw" class="btn-ghost chip-button hidden">DRAW TILE</button>
-          <button id="btn-pass" class="btn-ghost chip-button hidden">PASS TURN</button>
+          <span id="my-turn" class="turn-marker hidden">your turn</span>
+          <span id="my-tiles" class="material"></span>
+          <span id="my-clock" class="clock"></span>
         </div>
       </div>
 
-      <div id="my-rack" class="dominoes-rack"></div>
-      <div id="status" class="status-line"></div>
+      <p id="status-line" class="status-line"></p>
+
+      <div class="controls">
+        <button id="btn-confirm" class="btn-primary hidden">Confirm move</button>
+        <button id="btn-cancel" class="btn-ghost hidden">Cancel</button>
+        <button id="btn-draw-tile" class="btn-primary hidden">Draw a tile</button>
+        <button id="btn-pass" class="btn-ghost hidden">Pass</button>
+      </div>
     </div>
   </section>
 
-  <!-- Time Control Selection Modal -->
-  <div id="modal-setup" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <h2>Game Setup</h2>
-      <p id="setup-subtitle">Choose a per-move time limit:</p>
+  <!-- New-game setup: time per move -->
+  <div id="modal-setup" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2>New game</h2></div>
+      <p id="setup-subtitle" class="muted">How long does each player get per move?</p>
       <div id="setup-times" class="setup-times">
-        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer</span></button>
-        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Correspondence</span></button>
-        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>Daily pace</span></button>
-        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Evening games</span></button>
-        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual pace</span></button>
-        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast blitz</span></button>
+        <button class="setup-time" data-time="unlimited"><strong>Unlimited</strong><span>No timer — play over days</span></button>
+        <button class="setup-time" data-time="d3"><strong>3 days / move</strong><span>Relaxed correspondence</span></button>
+        <button class="setup-time" data-time="d1"><strong>1 day / move</strong><span>A move or two a day</span></button>
+        <button class="setup-time" data-time="h1"><strong>1 hour / move</strong><span>Same-evening games</span></button>
+        <button class="setup-time" data-time="m10"><strong>10 min / move</strong><span>Casual, sit-down pace</span></button>
+        <button class="setup-time" data-time="m1"><strong>1 min / move</strong><span>Fast and sharp</span></button>
       </div>
-      <button id="setup-cancel" class="link-btn">Cancel</button>
+      <div class="confirm-buttons">
+        <button id="setup-cancel" class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation dialog -->
+  <div id="modal-confirm" class="modal hidden">
+    <div class="modal-card modal-narrow">
+      <div class="modal-head"><h2 id="dm-confirm-title">Are you sure?</h2></div>
+      <p id="dm-confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="dm-confirm-cancel" class="btn-ghost">Cancel</button>
+        <button id="dm-confirm-ok" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-card modal-help-card">
+      <div class="modal-head"><h2>How to play</h2><button id="help-close" class="modal-close">&times;</button></div>
+      <div class="help-body">
+        <section class="help-section"><h3>The idea</h3>
+          <p>The double-six set is 28 tiles. You each get <strong>7</strong>; the remaining 14 form the <strong>boneyard</strong>. Be first to play your last tile — or, if the game blocks, hold the fewest pips.</p></section>
+        <section class="help-section"><h3>The opening</h3>
+          <p>Whoever holds the <strong>highest double</strong> leads with it. If neither of you has a double, the <strong>heaviest tile</strong> leads. That tile is the only one playable on the opening move, so it is chosen for you.</p></section>
+        <section class="help-section"><h3>Playing a tile</h3>
+          <p>A tile may only go on an end whose pip count it <strong>matches</strong>. Playable tiles in your rack are marked with a <strong>▲</strong> and a dashed outline. If a tile fits <em>both</em> ends you'll be asked which end you want.</p></section>
+        <section class="help-section"><h3>Drawing &amp; passing</h3>
+          <p>If you cannot play, you <strong>must draw</strong> from the boneyard — one tile at a time — until you can. Only when the boneyard is empty and you still cannot play may you <strong>pass</strong>. The buttons appear only when the rules allow them.</p></section>
+        <section class="help-section"><h3>Ending &amp; scoring</h3>
+          <p>Play your last tile and you win, scoring the pips left in your opponent's hand. If both players pass in a row with an empty boneyard the game is <strong>blocked</strong>: the lighter hand wins and scores the heavier one. Level pips is a draw.</p></section>
+        <section class="help-section"><h3>Per-move timer</h3>
+          <p>The host picks how long each side gets <strong>per move</strong> — from 1 minute to 3 days, or <strong>Unlimited</strong>. Run out on your move and you lose on time.</p></section>
+        <section class="help-section"><h3>Confirm moves</h3>
+          <p>By default moves are <strong>staged</strong> — pick a tile and end to preview it, then press <strong>Confirm</strong>. Turn it off in the menu to play immediately.</p></section>
+      </div>
     </div>
   </div>
 
