@@ -236,11 +236,14 @@ function resetGame() {
 
 async function enterRoom(code, seat, name, room) {
   resetGame();
-  app.code = code; app.seat = seat; app.name = name; app.room = room;
+  // The room is the authority on who occupies this seat. A stored session can
+  // carry a stale name (or one from a different identity), and showing that
+  // instead would label you as someone else.
+  app.code = code; app.seat = seat; app.name = seatName(room, seat) || name; app.room = room;
   $('room-code-text').textContent = code;
   $('room-code-chip').classList.remove('hidden');
   showScreen('game');
-  saveSession(GAME_SLUG, { code, name }, app.userId);
+  saveSession(GAME_SLUG, { code, name: app.name }, app.userId);
   setPhase('config');
   renderAll();
 
