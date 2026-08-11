@@ -166,12 +166,18 @@ export function createQuizGame(cfg) {
     if (!app.userId) return;
     startLobbyPolling();
     revealNotify();
-    $('lobby-name').textContent = app.name || 'player';
+    const nameEl = $('lobby-name');
+    if (nameEl) nameEl.textContent = app.name || 'player';
     let rooms;
     try { rooms = await fetchMyRooms(app.userId); }
-    catch (e) { $('lobby-error').textContent = `Could not load games (${e.message}).`; return; }
+    catch (e) {
+      const errEl = $('lobby-error');
+      if (errEl) errEl.textContent = `Could not load games (${e.message}).`;
+      return;
+    }
     rooms = cfg.filterDismissed(app.userId, rooms);
     const list = $('lobby-list');
+    if (!list) return;
     if (!rooms.length) {
       list.innerHTML = '<p class="lobby-empty">No games yet. <strong>NEW GAME</strong> to start one, or challenge a friend.</p>';
       return;
