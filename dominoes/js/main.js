@@ -356,10 +356,45 @@ function handleIncomingMove(move) {
   } else if (move.move_index > app.state.moveCount) app.conn.pollOnce().catch(() => {});
 }
 
+// ---- Running match score (across a rematch chain) --------------------------
+// Carried on room.players[seat].{matchWins,matchPoints} (shared/rooms.js's
+// extra-field params on createRoom/joinRoom). Undefined until the 2nd+ game
+// of an actual rematch chain, so a fresh one-off room never shows a
+// meaningless "0–0". matchPoints is the running pip total — dominoes is
+// traditionally scored to a target (100/150), so that's the number worth
+// tracking alongside games-won.
+function carriedTally(seat) {
+  const old = app.room?.players?.[seat];
+  const won = app.state.winner === seat;
+  return {
+    matchWins: (old?.matchWins || 0) + (won ? 1 : 0),
+    matchPoints: (old?.matchPoints || 0) + (won ? (app.state.score?.points || 0) : 0),
+  };
+}
+function matchPreview() {
+  if (app.room?.players?.[app.playerIndex]?.matchWins == null) return null;
+  return { my: carriedTally(app.playerIndex), their: carriedTally(1 - app.playerIndex) };
+}
+function renderMatchChip() {
+  const chip = $('match-chip'); if (!chip) return;
+  const has = app.room?.players?.[app.playerIndex]?.matchWins != null;
+  chip.classList.toggle('hidden', !has);
+  if (!has) return;
+  const my = app.room.players[app.playerIndex].matchPoints || 0;
+  const their = app.room.players[1 - app.playerIndex]?.matchPoints || 0;
+  chip.textContent = `Match ${my}–${their} pts`;
+  chip.title = my > their ? 'You lead the match' : my < their ? 'Opponent leads the match' : 'Match tied';
+}
+
 const rematch = createRematch({
   state: app, seatKey: 'playerIndex',
-  createRoom: async (name, userId) => { let room = await createRoom(name, userId); room = await stampTime(room, roomTimeKey(app.room)); return room; },
-  joinRoom, enterRoom, onError: (msg) => setStatus(msg),
+  createRoom: async (name, userId) => {
+    let room = await createRoom(name, userId, null, 2, carriedTally(app.playerIndex));
+    room = await stampTime(room, roomTimeKey(app.room));
+    return room;
+  },
+  joinRoom: async (code, name, userId) => joinRoom(code, name, userId, carriedTally(app.playerIndex)),
+  enterRoom, onError: (msg) => setStatus(msg),
 });
 $('btn-rematch').addEventListener('click', rematch.start);
 
@@ -560,7 +595,13 @@ async function maybeFinish() {
   if (!app.state?.gameOver || app.finishPersisted) return;
   app.finishPersisted = true;
   const s = app.state;
-  const result = { winner: s.winner, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null, score: s.score ?? null };
+  // s.score is { winner, points } (the pips scored FROM the loser's hand) —
+  // set for every end reason, including resign/timeout. The winner's seat
+  // gets the points, the other seat gets 0; a blocked tie scores 0-0 (nobody
+  // scored anything).
+  const scores = s.score?.winner === 0 ? [s.score.points, 0]
+    : s.score?.winner === 1 ? [0, s.score.points] : [0, 0];
+  const result = { winner: s.winner, scores, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null, score: s.score ?? null };
   try { await finishRoom(app.code, result, true); if (app.room) { app.room.status = 'finished'; app.room.result = result; } app.conn?.broadcastRoom(app.room); }
   catch { app.finishPersisted = false; }
 }
@@ -606,7 +647,7 @@ async function claimTimeout(flaggedSeat) {
 
 // ---- Rendering --------------------------------------------------------------
 
-function renderAll() { renderChainAndRack(); renderOppPanel(); renderMyPanel(); renderControls(); renderOverlays(); renderClocks(); }
+function renderAll() { renderChainAndRack(); renderOppPanel(); renderMyPanel(); renderControls(); renderOverlays(); renderClocks(); renderMatchChip(); }
 function renderMyOnline() { const dot = $('my-online'); if (!dot) return; const live = app.connMode === 'live'; dot.className = `online-dot ${live ? 'online' : 'syncing'}`; dot.title = live ? 'Connected — moves arrive instantly' : 'Syncing through the database'; }
 
 function renderChainAndRack() {
@@ -716,7 +757,13 @@ function renderGameOver() {
   } else if (reason === 'resign') detail = s.winner === me ? `${playerName(1 - me)} resigned.` : 'You resigned.';
   else if (reason === 'timeout') detail = s.winner === me ? `${playerName(1 - me)} ran out of time.` : 'You ran out of time.';
   else detail = 'Draw agreed.';
-  $('gameover-detail').innerHTML = `<p class="gameover-reason">${esc(detail)}</p>`;
+  let html = `<p class="gameover-reason">${esc(detail)}</p>`;
+  const mp = matchPreview();
+  if (mp) {
+    const lead = mp.my.matchPoints > mp.their.matchPoints ? 'you lead' : mp.my.matchPoints < mp.their.matchPoints ? `${playerName(1 - me)} leads` : 'tied';
+    html += `<p class="gameover-match">Match: ${mp.my.matchPoints}–${mp.their.matchPoints} pts · ${esc(lead)}</p>`;
+  }
+  $('gameover-detail').innerHTML = html;
 }
 
 // ---- Confirmation dialog ----------------------------------------------------

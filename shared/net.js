@@ -9,11 +9,11 @@ export function createNet(GAME_SLUG) {
     fetchFinishedRooms: (userId) =>
       rooms.fetchFinishedRooms(userId, GAME_SLUG),
 
-    createRoom: (hostName, hostUserId = null, invite = null, maxPlayers = 2) =>
-      rooms.createRoom(hostName, hostUserId, invite, GAME_SLUG, maxPlayers),
+    createRoom: (hostName, hostUserId = null, invite = null, maxPlayers = 2, extraHostFields = null) =>
+      rooms.createRoom(hostName, hostUserId, invite, GAME_SLUG, maxPlayers, extraHostFields),
 
-    joinRoom: (code, name, userId = null) =>
-      rooms.joinRoom(code, name, userId),
+    joinRoom: (code, name, userId = null, extraGuestFields = null) =>
+      rooms.joinRoom(code, name, userId, extraGuestFields),
 
     fetchMyRooms: (userId) =>
       rooms.fetchMyRooms(userId, GAME_SLUG),

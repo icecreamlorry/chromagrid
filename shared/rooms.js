@@ -60,9 +60,12 @@ export function seatLeft(room, seat) {
 // invite = { userId, name } pre-addresses the room to a friend so it appears
 // in their lobby without code sharing.
 // maxPlayers defaults to 2; pass higher for multiplayer games.
-export async function createRoom(hostName, hostUserId = null, invite = null, gameSlug, maxPlayers = 2) {
+// extraHostFields (e.g. { matchWins, matchPoints } — see shared/rematch.js
+// callers) is merged straight into the host's players[] entry, so a rematch
+// chain can carry a running score forward with no extra round-trip.
+export async function createRoom(hostName, hostUserId = null, invite = null, gameSlug, maxPlayers = 2, extraHostFields = null) {
   const seed = Math.floor(Math.random() * 2 ** 31);
-  const hostPlayer = { seat: 0, name: cleanName(hostName), userId: hostUserId ?? null };
+  const hostPlayer = { seat: 0, name: cleanName(hostName), userId: hostUserId ?? null, ...extraHostFields };
   if (!hostUserId) hostPlayer.guestId = getGuestId(); // distinguish same-named guests
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();
@@ -92,7 +95,11 @@ export async function createRoom(hostName, hostUserId = null, invite = null, gam
 // Resolve and claim a seat in a room. Signed-in players are matched by userId;
 // anonymous players by name. Uses player_count as an optimistic lock so two
 // simultaneous joins never land on the same seat.
-export async function joinRoom(code, name, userId = null) {
+// extraGuestFields (see createRoom above) is merged into the NEW seat entry
+// only — a player resuming a seat they already hold keeps whatever is already
+// there, since that's the row a prior stamp (or this same merge, last time)
+// already wrote.
+export async function joinRoom(code, name, userId = null, extraGuestFields = null) {
   const { data: room, error } = await supabase()
     .from('rooms')
     .select()
@@ -127,7 +134,7 @@ export async function joinRoom(code, name, userId = null) {
   }
 
   const nextSeat = room.player_count;
-  const newPlayer = { seat: nextSeat, name: cleanName(name), userId: userId ?? null };
+  const newPlayer = { seat: nextSeat, name: cleanName(name), userId: userId ?? null, ...extraGuestFields };
   if (!userId) newPlayer.guestId = getGuestId();
   const newPlayers = [...players, newPlayer];
   const newStatus = nextSeat + 1 >= room.max_players ? 'full' : 'waiting';

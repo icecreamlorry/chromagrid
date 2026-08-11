@@ -313,10 +313,45 @@ function handleIncomingMove(move) {
     renderAll(); announceLastMove(); maybeNotifyTurn(); maybeFinish();
   } else if (move.move_index > app.state.moveCount) app.conn.pollOnce().catch(() => {});
 }
+// ---- Running match score (across a rematch chain) --------------------------
+// Carried on room.players[seat].{matchWins,matchPoints} (shared/rooms.js's
+// extra-field params on createRoom/joinRoom). Undefined until the 2nd+ game
+// of an actual rematch chain, so a fresh one-off room never shows a
+// meaningless "0–0". matchPoints uses backgammon's own gammon/backgammon
+// stakes (roundPoints, above) — the number that actually matters in a
+// backgammon match, not just games won.
+function carriedTally(seat) {
+  const old = app.room?.players?.[seat];
+  const won = app.state.winner === seat;
+  return {
+    matchWins: (old?.matchWins || 0) + (won ? 1 : 0),
+    matchPoints: (old?.matchPoints || 0) + (won ? roundPoints(app.state) : 0),
+  };
+}
+function matchPreview() {
+  if (app.room?.players?.[app.playerIndex]?.matchWins == null) return null;
+  return { my: carriedTally(app.playerIndex), their: carriedTally(1 - app.playerIndex) };
+}
+function renderMatchChip() {
+  const chip = $('match-chip'); if (!chip) return;
+  const has = app.room?.players?.[app.playerIndex]?.matchWins != null;
+  chip.classList.toggle('hidden', !has);
+  if (!has) return;
+  const my = app.room.players[app.playerIndex].matchPoints || 0;
+  const their = app.room.players[1 - app.playerIndex]?.matchPoints || 0;
+  chip.textContent = `Match ${my}–${their} pts`;
+  chip.title = my > their ? 'You lead the match' : my < their ? 'Opponent leads the match' : 'Match tied';
+}
+
 const rematch = createRematch({
   state: app, seatKey: 'playerIndex',
-  createRoom: async (name, userId) => { let room = await createRoom(name, userId); room = await stampTime(room, roomTimeKey(app.room)); return room; },
-  joinRoom, enterRoom, onError: (msg) => setStatus(msg),
+  createRoom: async (name, userId) => {
+    let room = await createRoom(name, userId, null, 2, carriedTally(app.playerIndex));
+    room = await stampTime(room, roomTimeKey(app.room));
+    return room;
+  },
+  joinRoom: async (code, name, userId) => joinRoom(code, name, userId, carriedTally(app.playerIndex)),
+  enterRoom, onError: (msg) => setStatus(msg),
 });
 $('btn-rematch').addEventListener('click', rematch.start);
 async function handlePresence(present) {
@@ -516,10 +551,19 @@ async function submitMove(type, payload) {
   }
 }
 
+// Backgammon's own stakes convention: a plain win is 1 point, a gammon 2, a
+// backgammon 3 (s.endDetail.margin, already computed by classifyWin() in the
+// engine for a normal bear-off finish). Resign/timeout have no margin — count
+// as a plain 1-point win. Shared by maybeFinish (this round's result) and
+// carriedTally (the running match total).
+function roundPoints(s) { return { single: 1, gammon: 2, backgammon: 3 }[s.endDetail?.margin] ?? 1; }
+
 async function maybeFinish() {
   if (!app.state?.gameOver || app.finishPersisted) return;
   app.finishPersisted = true; const s = app.state;
-  const result = { winner: s.winner, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null };
+  const points = roundPoints(s);
+  const scores = s.winner === 0 ? [points, 0] : [0, points];
+  const result = { winner: s.winner, scores, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null };
   try { await finishRoom(app.code, result, true); if (app.room) { app.room.status = 'finished'; app.room.result = result; } app.conn?.broadcastRoom(app.room); } catch { app.finishPersisted = false; }
 }
 function applyStoredResult(stateObj, result) {
@@ -555,7 +599,7 @@ async function claimTimeout(flaggedSeat) {
 
 // ---- Rendering --------------------------------------------------------------
 
-function renderAll() { syncTurn(); renderBoard(); renderOppPanel(); renderMyPanel(); renderControls(); renderOverlays(); renderClocks(); }
+function renderAll() { syncTurn(); renderBoard(); renderOppPanel(); renderMyPanel(); renderControls(); renderOverlays(); renderClocks(); renderMatchChip(); }
 function renderMyOnline() { const dot = $('my-online'); if (!dot) return; const live = app.connMode === 'live'; dot.className = `online-dot ${live ? 'online' : 'syncing'}`; dot.title = live ? 'Connected — moves arrive instantly' : 'Syncing through the database'; }
 
 function diceView() {
@@ -669,7 +713,13 @@ function renderGameOver() {
   if (s.endDetail?.reason === 'borne-off') detail = margin === 'backgammon' ? 'A backgammon — triple stakes!' : margin === 'gammon' ? 'A gammon — double stakes!' : 'All checkers borne off.';
   else if (s.endDetail?.reason === 'resign') detail = 'By resignation.';
   else if (s.endDetail?.reason === 'timeout') detail = 'On time.';
-  $('gameover-detail').innerHTML = `<p class="gameover-reason">${esc(detail)}</p>`;
+  let html = `<p class="gameover-reason">${esc(detail)}</p>`;
+  const mp = matchPreview();
+  if (mp) {
+    const lead = mp.my.matchPoints > mp.their.matchPoints ? 'you lead' : mp.my.matchPoints < mp.their.matchPoints ? `${playerName(1 - me)} leads` : 'tied';
+    html += `<p class="gameover-match">Match: ${mp.my.matchPoints}–${mp.their.matchPoints} pts · ${esc(lead)}</p>`;
+  }
+  $('gameover-detail').innerHTML = html;
 }
 
 // ---- Confirmation dialog ----------------------------------------------------

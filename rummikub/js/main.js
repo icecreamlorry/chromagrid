@@ -633,7 +633,17 @@ async function maybeFinish() {
   if (!app.state?.gameOver || app.finishPersisted) return;
   app.finishPersisted = true;
   const s = app.state;
-  const result = { winner: s.winner, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null };
+  // Real Rummikub scoring: the player who ended the round scores the sum of
+  // every other active seat's remaining rack value; everyone else scores the
+  // NEGATIVE of their own remaining value. `standings` (already computed by
+  // the engine's finishOut) is only the ACTIVE seats, so a resigned player
+  // simply has no entry. A tie (stalemate, level racks) has no round winner —
+  // nobody gets the bonus, everyone just scores -value.
+  const rows = s.endDetail?.standings || [];
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  const scores = [];
+  for (const { seat, value } of rows) scores[seat] = (s.winner !== 'tie' && s.winner === seat) ? (total - value) : -value;
+  const result = { winner: s.winner, scores, reason: s.endDetail?.reason ?? null, endDetail: s.endDetail ?? null };
   try { await finishRoom(app.code, result, true); if (app.room) { app.room.status = 'finished'; app.room.result = result; } app.conn?.broadcastRoom(app.room); }
   catch { app.finishPersisted = false; }
 }

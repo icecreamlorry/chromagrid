@@ -134,6 +134,16 @@ input, textarea { user-select: text; }
 .chip-danger { color: #e8857a; }
 .chip-danger:hover:not(:disabled) { background: #c0392b; color: #fff; }
 
+/* The running score across a rematch chain (a plain <span>, not a button —
+   informational only). Hidden by default; a game shows it once a series
+   actually exists (its 2nd+ game), so a one-off game never displays a
+   meaningless "0–0". See CLAUDE.md's rematch note. */
+#match-chip { color: var(--cyan); font-weight: 700; }
+
+/* Same running score, restated on the game-over overlay right where a player
+   is deciding whether to rematch. */
+.gameover-match { color: var(--cyan); font-weight: 700; margin: 2px 0 10px; }
+
 /* ---- Table layout ---- */
 
 .table {

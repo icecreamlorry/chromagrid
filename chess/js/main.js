@@ -688,15 +688,40 @@ function handleIncomingMove(move) {
   }
 }
 
+// ---- Running match score (across a rematch chain) --------------------------
+// Carried on room.players[seat].matchWins (shared/rooms.js's extra-field
+// params on createRoom/joinRoom). Undefined until the 2nd+ game of an actual
+// rematch chain, so a fresh one-off room never shows a meaningless "0–0".
+function carriedTally(seat) {
+  const old = app.room?.players?.[seat];
+  const won = app.state.winner === seat;
+  return { matchWins: (old?.matchWins || 0) + (won ? 1 : 0) };
+}
+function matchPreview() {
+  if (app.room?.players?.[app.playerIndex]?.matchWins == null) return null;
+  return { my: carriedTally(app.playerIndex).matchWins, their: carriedTally(1 - app.playerIndex).matchWins };
+}
+function renderMatchChip() {
+  const chip = $('match-chip'); if (!chip) return;
+  const has = app.room?.players?.[app.playerIndex]?.matchWins != null;
+  chip.classList.toggle('hidden', !has);
+  if (!has) return;
+  const my = app.room.players[app.playerIndex].matchWins || 0;
+  const their = app.room.players[1 - app.playerIndex]?.matchWins || 0;
+  chip.textContent = `Match ${my}–${their}`;
+  chip.title = my > their ? 'You lead the match' : my < their ? 'Opponent leads the match' : 'Match tied';
+}
+
 const rematch = createRematch({
   state: app,
   seatKey: 'playerIndex',
   createRoom: async (name, userId) => {
-    let room = await createRoom(name, userId);
+    let room = await createRoom(name, userId, null, 2, carriedTally(app.playerIndex));
     room = await stampTime(room, roomTimeKey(app.room));
     return room;
   },
-  joinRoom, enterRoom,
+  joinRoom: async (code, name, userId) => joinRoom(code, name, userId, carriedTally(app.playerIndex)),
+  enterRoom,
   onError: (msg) => setStatus(msg),
 });
 $('btn-rematch').addEventListener('click', rematch.start);
@@ -919,6 +944,9 @@ async function maybeFinish() {
   const s = app.state;
   const result = {
     winner: s.winner,
+    // Standard match-point convention (Game History has no richer score for
+    // chess): win 1, loss 0, draw 0.5 each.
+    scores: s.winner === 'tie' ? [0.5, 0.5] : [s.winner === 0 ? 1 : 0, s.winner === 1 ? 1 : 0],
     reason: s.endDetail?.reason ?? null,
     endDetail: s.endDetail ?? null,
     whiteSeat: s.whiteSeat,
@@ -1002,6 +1030,7 @@ function renderAll() {
   renderControls();
   renderOverlays();
   renderClocks();
+  renderMatchChip();
 }
 
 function renderMyOnline() {
@@ -1186,7 +1215,13 @@ function renderGameOver() {
       ? `Checkmate — ${winnerName === 'You' ? 'you' : winnerName} won.`
       : `${winnerName} won ${REASON_TEXT[reason]}`;
   }
-  $('gameover-detail').innerHTML = `<p class="gameover-reason">${esc(detail)}</p>`;
+  let html = `<p class="gameover-reason">${esc(detail)}</p>`;
+  const mp = matchPreview();
+  if (mp) {
+    const lead = mp.my > mp.their ? 'you lead' : mp.my < mp.their ? `${playerName(1 - me)} leads` : 'tied';
+    html += `<p class="gameover-match">Match: ${mp.my}–${mp.their} · ${esc(lead)}</p>`;
+  }
+  $('gameover-detail').innerHTML = html;
 }
 
 // ---- Confirmation dialog --------------------------------------------------------
