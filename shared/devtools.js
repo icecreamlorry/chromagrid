@@ -19,9 +19,11 @@
 // or via the global: window.LBDevtools.flagEnabled('fastTimer')
 
 import { getEntries, clearEntries, subscribe } from './devlog.js';
+import { getTestIdentity, setTestIdentity } from './guest-id.js';
 
 const FLAGS_KEY = 'lb_devflags';
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---- feature flags --------------------------------------------------------
 
@@ -193,6 +195,16 @@ function injectStyles() {
     .lbdev-toggle.on { background: rgba(0,245,255,0.25); border-color: #00f5ff; }
     .lbdev-toggle.on::after { transform: translateX(18px); background: #00f5ff; }
     .lbdev-empty-flags { font-size: 0.62rem; color: rgba(0,245,255,0.4); padding: 4px 2px; }
+    .lbdev-testid { display: flex; gap: 8px; }
+    .lbdev-testid input {
+      flex: 1; min-width: 0; background: rgba(0,245,255,0.04);
+      border: 1px solid rgba(0,245,255,0.25); border-radius: 3px;
+      padding: 7px 9px; font-family: inherit; font-size: 0.72rem; color: #d6eef2;
+    }
+    .lbdev-testid input:focus { outline: none; border-color: #00f5ff; }
+    .lbdev-testid input.active { border-color: #ff5ad8; background: rgba(255,0,200,0.06); }
+    .lbdev-testid-status { font-size: 0.58rem; color: rgba(0,245,255,0.45); margin-top: 4px; }
+    .lbdev-testid-status.active { color: #ff9ae8; }
   `;
   document.head.appendChild(style);
 }
@@ -213,6 +225,14 @@ function buildPanel() {
       </div>
       <div class="lbdev-body">
         <div>
+          <div class="lbdev-section-label">Test identity (this tab only)</div>
+          <div class="lbdev-testid">
+            <input id="lbdev-testid-input" type="text" maxlength="24" placeholder="Off — using your real guest name" autocomplete="off" spellcheck="false">
+            <button class="lbdev-btn" id="lbdev-testid-apply">Apply &amp; reload</button>
+          </div>
+          <div class="lbdev-testid-status" id="lbdev-testid-status"></div>
+        </div>
+        <div>
           <div class="lbdev-section-label">Feature flags</div>
           <div class="lbdev-flags" id="lbdev-flags"></div>
         </div>
@@ -228,6 +248,16 @@ function buildPanel() {
   $('lbdev-close').addEventListener('click', closePanel);
   $('lbdev-clear').addEventListener('click', () => { clearEntries(); renderLog(); });
   $('lbdev-copy').addEventListener('click', copyLog);
+
+  const testIdInput = $('lbdev-testid-input');
+  const applyTestId = () => {
+    const v = testIdInput.value.trim();
+    if (v === getTestIdentity()) return; // nothing changed — skip the reload
+    setTestIdentity(v);
+    location.reload();
+  };
+  $('lbdev-testid-apply').addEventListener('click', applyTestId);
+  testIdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyTestId(); });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) closePanel();
@@ -395,6 +425,20 @@ function renderLog() {
   if (body) body.scrollTop = body.scrollHeight;
 }
 
+function renderTestIdentity() {
+  const input = $('lbdev-testid-input');
+  const status = $('lbdev-testid-status');
+  if (!input || !status) return;
+  const active = getTestIdentity();
+  // Never clobber the field while someone is mid-edit.
+  if (document.activeElement !== input) input.value = active;
+  input.classList.toggle('active', !!active);
+  status.classList.toggle('active', !!active);
+  status.textContent = active
+    ? `Active on this tab as "${active}" — a made-up guest identity, separate from your real one. Clear the field and Apply to go back to normal.`
+    : 'Type a name and Apply to make this ONE tab a distinct player — handy for testing multiplayer with two tabs in one browser. Never touches your real name or the other tab.';
+}
+
 function renderFlags() {
   const el = $('lbdev-flags');
   if (!el) return;
@@ -437,6 +481,7 @@ function isOpen() { return $('lbdev-modal')?.classList.contains('lbdev-open'); }
 
 export function openPanel() {
   buildPanel();
+  renderTestIdentity();
   renderFlags();
   renderLog();
   $('lbdev-modal').classList.add('lbdev-open');
@@ -454,11 +499,14 @@ function makeMenuItem() {
   const btn = document.createElement('button');
   btn.className = 'menu-item menu-sep';
   btn.id = 'lbdev-menu-item';
-  btn.title = 'Dev tools';
+  // Surface an active test identity right on the menu item — so a tab running
+  // as a fake player is never mistaken for a real one during manual QA.
+  const testId = getTestIdentity();
+  btn.title = testId ? `Dev tools — test identity: ${testId}` : 'Dev tools';
   btn.innerHTML =
     '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M6.5 2.5 3 6l3.5 3.5"/><path d="M9.5 6.5 13 10l-3.5 3.5"/>' +
-    '</svg><span>Dev tools</span>';
+    '</svg><span>Dev tools' + (testId ? ` (${esc(testId)})` : '') + '</span>';
   btn.addEventListener('click', openPanel);
   return btn;
 }
@@ -489,5 +537,11 @@ if (document.readyState === 'loading') {
   init();
 }
 
-// Expose a small global so non-module game code can use flags / open the panel.
-window.LBDevtools = { registerFlag, flagEnabled, setFlag, onFlagChange, openPanel };
+// Expose a small global so non-module game code can use flags / open the panel,
+// and so browser-automation testing can set a per-tab test identity in one call
+// (window.LBDevtools.setTestIdentity('Dana'); then reload) instead of poking
+// localStorage/sessionStorage keys by hand.
+window.LBDevtools = {
+  registerFlag, flagEnabled, setFlag, onFlagChange, openPanel,
+  getTestIdentity, setTestIdentity,
+};

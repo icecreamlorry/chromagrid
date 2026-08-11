@@ -262,6 +262,17 @@ dataset against the clock, solo or in a room" game:
   the game's "resume this room" pointer in **localStorage for guests** (they have
   no server-side games list) and sessionStorage for signed-in players (they have
   the lobby). See Weiqi's `saveSession`/`readSession`/`clearSession`.
+- **Testing two players in one browser**: two tabs share the same localStorage,
+  so they're the same guest by design — you'll join your own room as the host
+  again, not as a second player. Use Dev Tools (hamburger menu → **Dev tools**)
+  → **Test identity (this tab only)**: type a name, Apply & reload, and that ONE
+  tab is pinned to a made-up guest (id `test-<slug>`) in **sessionStorage**,
+  independent of the tab's real identity — open a second tab, leave it alone (or
+  give it a different test identity), and the two are now genuinely different
+  players. Clear the field + Apply to go back to normal. Also scriptable —
+  `window.LBDevtools.setTestIdentity('Dana')` then `location.reload()` — which
+  is the fast path when driving this via Chrome automation rather than clicking.
+  Never touches the real guest id/name, so it's safe to leave set walking away.
 - Add each new game as a card in the root `index.html`, and give it engine tests
   under `<game>/test/*.mjs` (run with `node`).
 - **Icons: the source of truth is `<game>/icons/icon.svg`** (a rounded-square

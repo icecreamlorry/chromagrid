@@ -5,16 +5,19 @@ import { record, getEntries, clearEntries } from '../devlog.js';
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  ✗ ' + msg); } };
 
-// Mock global localStorage for Node env
-global.localStorage = (function() {
+function makeStorage() {
   let store = {};
   return {
-    getItem: (key) => store[key] || null,
+    getItem: (key) => (key in store ? store[key] : null),
     setItem: (key, val) => { store[key] = String(val); },
     removeItem: (key) => { delete store[key]; },
     clear: () => { store = {}; },
   };
-})();
+}
+
+// Mock global localStorage/sessionStorage for Node env
+global.localStorage = makeStorage();
+global.sessionStorage = makeStorage();
 
 // Clear store before testing
 clearEntries();
@@ -61,6 +64,46 @@ ok(/^\d{4}-\d{2}-\d{2}$/.test(todayKey), 'getDayKey returns YYYY-MM-DD');
 
 clearEntries();
 ok(getEntries().length === 0, 'clearEntries resets the log');
+
+// ---- Dev Tools "Test identity" override ------------------------------------
+// The whole point is a per-TAB (sessionStorage) override that never touches
+// the real per-device identity (localStorage) — verify both the isolation and
+// that guest-id.js / guest-name.js actually honour it.
+{
+  const { getGuestId, getTestIdentity, setTestIdentity } = await import('../guest-id.js');
+  const { getGuestName, setGuestName } = await import('../guest-name.js');
+
+  ok(getTestIdentity() === '', 'test identity: off by default');
+
+  const realId = getGuestId();
+  ok(localStorage.getItem('lbgames.guestId') === realId, 'real guest id persists to localStorage as before');
+
+  setTestIdentity('Dana Two');
+  ok(getTestIdentity() === 'Dana Two', 'test identity: set and read back');
+  ok(sessionStorage.getItem('lbgames.testIdentity') === 'Dana Two', 'test identity lives in sessionStorage, not localStorage');
+
+  const testId = getGuestId();
+  ok(testId !== realId, 'test identity: getGuestId returns something different while active');
+  ok(testId.startsWith('test-'), 'test identity: the override id is clearly marked as a test id');
+  ok(localStorage.getItem('lbgames.guestId') === realId, 'test identity: the REAL localStorage id is untouched');
+
+  ok(getGuestName() === 'Dana Two', 'test identity: getGuestName returns it directly, not from storage');
+
+  const realName = 'Alice';
+  localStorage.setItem('lbgames.name', realName);
+  const returned = setGuestName('Someone Else');
+  ok(returned === 'Someone Else', 'test identity: setGuestName still returns the typed value for this tab');
+  ok(localStorage.getItem('lbgames.name') === realName,
+    'test identity: setGuestName does NOT overwrite the real shared name while a test identity is active');
+
+  setTestIdentity('');
+  ok(getTestIdentity() === '', 'test identity: clearing restores normal behaviour');
+  ok(getGuestId() === realId, 'test identity: getGuestId reverts to the real id once cleared');
+  ok(getGuestName() === realName, 'test identity: getGuestName reverts to the real stored name once cleared');
+
+  setGuestName('Bob');
+  ok(localStorage.getItem('lbgames.name') === 'Bob', 'setGuestName persists normally again once the override is off');
+}
 
 console.log(`\nshared devtools: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
