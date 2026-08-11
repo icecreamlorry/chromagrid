@@ -221,6 +221,7 @@ function renderNotifyBtns() {
   if (!notificationsSupported()) { item.classList.add('hidden'); return; }
   item.classList.remove('hidden');
   const on = notifyEnabled();
+  item.classList.toggle('on', on);
   const label = $('menu-notify-label');
   if (label) label.textContent = notificationPermission() === 'denied' ? 'Turn alerts: blocked' : (on ? 'Turn alerts: on' : 'Turn alerts: off');
 }

@@ -50,7 +50,6 @@ const ROOM_GAMES = [
 const DAILY_GAMES = [
   { slug: 'chromagrid', name: 'Chromagrid', href: 'chromagrid/' },
   { slug: 'scramblr', name: 'Scramblr', href: 'scramblr/' },
-  { slug: 'chrono', name: 'Chrono', href: 'chrono/' },
 ];
 
 // Initials fallback shown behind the favicon (if the icon fails to load).

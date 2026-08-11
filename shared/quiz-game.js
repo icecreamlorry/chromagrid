@@ -66,21 +66,9 @@ export function createQuizGame(cfg) {
   const soloRoom = () => seats() <= 1;
   const canConfigure = () => app.seat === 0;
 
-  // ---- Session pointer (localStorage for guests, sessionStorage for signed-in) ----
-  function saveSession(data) {
-    const raw = JSON.stringify(data);
-    try {
-      if (app.userId) { sessionStorage.setItem(SESSION_KEY, raw); localStorage.removeItem(SESSION_KEY); }
-      else { localStorage.setItem(SESSION_KEY, raw); sessionStorage.removeItem(SESSION_KEY); }
-    } catch { /* storage blocked — resume just won't persist */ }
-  }
-  function readSession() {
-    try { return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY); }
-    catch { return null; }
-  }
-  function clearSession() {
-    try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-  }
+  // Session pointer (localStorage for guests, sessionStorage for signed-in) comes
+  // from shared/game-session.js — these used to be redeclared here, which shadowed
+  // the imports and made every call store the slug string instead of the session.
 
   // ---- Screens ----
   function showScreen(which) {
@@ -672,9 +660,7 @@ export function createQuizGame(cfg) {
     const urlCode = takeRoomParam();
     if (urlCode) {
       try {
-        const roomPromise = joinRoom(urlCode, app.name, app.userId);
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
-        const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
+        const { room, playerIndex } = await joinRoom(urlCode, app.name, app.userId);
         await enterRoom(urlCode, playerIndex, seatName(room, playerIndex) || 'Guest', room);
         return true;
       } catch { /* fall through to the stored session */ }
@@ -683,9 +669,7 @@ export function createQuizGame(cfg) {
     if (!session) return false;
     try {
       const { code, name } = typeof session === 'string' ? JSON.parse(session) : session;
-      const roomPromise = joinRoom(code, name, app.userId);
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
-      const { room, playerIndex } = await Promise.race([roomPromise, timeoutPromise]);
+      const { room, playerIndex } = await joinRoom(code, name, app.userId);
       await enterRoom(code, playerIndex, name, room);
       return true;
     } catch { clearSession(cfg.slug); return false; }
