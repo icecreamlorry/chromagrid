@@ -52,7 +52,10 @@
   border-radius: 7px; line-height: 0;
   -webkit-tap-highlight-color: transparent;
 }
-.dm-rack-tile:disabled { cursor: default; opacity: 0.55; }
+/* Only a light dim: while it isn't your turn EVERY tile is disabled, and you
+   still need to read your own hand. Playability is carried by the dashed
+   outline and the ▲ marker, not by fading the tile out. */
+.dm-rack-tile:disabled { cursor: default; opacity: 0.88; }
 
 /* Playable is signalled by a DASHED outline plus a ▲ marker — a shape change,
    legible without colour (CLAUDE.md §3). */

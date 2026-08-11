@@ -203,10 +203,14 @@ async function createChallengeWithTime(friend, timeKey) {
 // ---- Entering / leaving -----------------------------------------------------
 
 async function enterRoom(code, playerIndex, name, room) {
-  app.code = code; app.playerIndex = playerIndex; app.name = name; app.room = room;
+  // The room is the authority on who occupies this seat. A stored session can
+  // carry a stale name (or one from a different identity), and showing that
+  // instead would label you as someone else.
+  app.code = code; app.playerIndex = playerIndex; app.room = room;
+  app.name = seatName(room, playerIndex) || name;
   app.rematching = false; app.staged = null;
   const rb = $('btn-rematch'); if (rb) rb.disabled = false;
-  saveSession(GAME_SLUG, { code, playerIndex, name }, app.userId);
+  saveSession(GAME_SLUG, { code, playerIndex, name: app.name }, app.userId);
 
   app.finishPersisted = room.status === 'finished';
   app.state = newGameState(room.seed);
@@ -527,7 +531,7 @@ function sideLabel(seat) { return colorOf(app.state, seat) === 'd' ? 'Dark ●' 
 function renderDiscs(el, seat) {
   const counts = countDiscs(app.staged ? app.staged.board : app.state.board);
   const n = colorOf(app.state, seat) === 'd' ? counts.dark : counts.light;
-  el.innerHTML = app.state.started ? `<span>${n} discs</span>` : '';
+  el.innerHTML = app.state.started ? `<span>${n} disc${n === 1 ? '' : 's'}</span>` : '';
 }
 function renderOppPanel() {
   const oppIdx = 1 - app.playerIndex, hasOpp = !!seatName(app.room, oppIdx), nameEl = $('opp-name');
