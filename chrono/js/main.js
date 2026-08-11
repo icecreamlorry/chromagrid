@@ -1,10 +1,10 @@
 // chrono/js/main.js — Chrono quiz application main entry point matching Quiz Games group standards
 
-import { buildRounds, gradeOrder, orderKey } from './engine.js';
+import { buildRounds, rankSeats, winnerSeat, scoreOf } from './engine.js';
 import { loadEvents } from './dataset.js';
 import { createMode, renderReview, hidePanels } from './modes.js';
 import {
-  createRoom, joinRoom, fetchRoom, fetchMoves, fetchMyRooms, updateRoomStatus,
+  createRoom, joinRoom, fetchRoom, fetchMyRooms, updateRoomStatus,
   finishRoom, RoomConnection, triggerPush, seatName, seatLeft, markPlayerLeft,
 } from './net.js';
 import { createRematch } from '../../shared/rematch.js';
@@ -33,19 +33,6 @@ export function diffMeta(id) {
   return diffs[id] || diffs.medium;
 }
 
-function scoreOf(result) {
-  return result?.score ?? 0;
-}
-
-function rankSeats(results = {}) {
-  return Object.keys(results).sort((a, b) => (results[b]?.score || 0) - (results[a]?.score || 0));
-}
-
-function winnerSeat(results = {}) {
-  const ranked = rankSeats(results);
-  return ranked.length ? ranked[0] : null;
-}
-
 createQuizGame({
   slug: GAME_SLUG,
   gameName: 'Chrono',
@@ -66,14 +53,16 @@ createQuizGame({
   loadCfgInto: () => {},
   buildCfgButtons: () => {},
   markSelected: () => {},
-  pickTitle: () => 'CHRONO RACE',
+  pickTitle: 'CHRONO RACE',
   cfgSummary: () => '10 Rounds Chronological Sort',
   cfgComplete: () => true,
   diffEffect: () => '',
   startPayload: () => ({ mode: 'timeline', diff: 'medium', count: 10 }),
   payloadValid: () => true,
   modeChipLabel: () => 'TIMELINE',
-  buildRounds: (data, seed, payload) => buildRounds(data, seed, payload?.count ?? 10),
+  // quiz-game.js calls this as (data, payload, seed) — NOT (data, seed, payload).
+  buildRounds: (data, p, seed) => buildRounds(data, seed, p?.count ?? 10),
+  resultMeta: (p) => ({ mode: p?.mode, diff: p?.diff }),
   historyDetail: (data, result) => `${result?.score || 0} pts`,
   configReady,
   cachedUser,
