@@ -46,14 +46,16 @@
   <!-- Game -->
   <section id="screen-game" class="screen hidden">
     <header class="game-header">
-      <span class="logo logo-small">Rummikub</span>
+      <a class="home-link" href="../" title="All games" aria-label="LB Games — all games"><span class="lb-mark"></span></a>
       <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
+      <span class="grow"></span>
       <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Leave this game">Resign</button>
       <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
         </svg>
       </button>
+      <span class="menu-slot"></span>
     </header>
 
     <div class="table">

@@ -33,6 +33,14 @@
   <!-- Lobby ("My Games") — signed-in players; markup injected by shared/lobby-ui.js -->
   <section id="screen-lobby" class="screen hidden"></section>
 
+  <!-- Unified game header (shared.css): LB mark home link + in-flow hamburger.
+       The retro CHROMAGRID wordmark below is stage content, not the header. -->
+  <header class="game-header">
+    <a class="home-link" href="../" title="All games" aria-label="LB Games — all games"><span class="lb-mark"></span></a>
+    <span class="grow"></span>
+    <span class="menu-slot"></span>
+  </header>
+
   <div id="stage">
     <div id="board-col">
       <header>

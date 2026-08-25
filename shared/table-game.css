@@ -13,11 +13,10 @@
 * { box-sizing: border-box; user-select: none; }
 html, body { height: 100%; overflow: hidden; }
 
-/* The centred game-column width. The header content, the board column AND the
-   fixed hamburger's inset ALL derive from this one number, so they can never
-   drift into an overlap or leave the burger stranded in a far corner. Change
-   the column width here and everything tracks it. See ".game-header" below. */
-:root { --shell-max: 680px; }
+/* The centred game-column width (--shell-max) now lives in shared.css, where
+   the unified .game-header uses it too; 680px — the table default — is that
+   file's default, so this kit doesn't restate it. The board column below just
+   reads var(--shell-max). */
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -54,7 +53,8 @@ input, textarea { user-select: text; }
   font-size: min(60px, 15cqi); margin: 0; letter-spacing: 2px; white-space: nowrap;
   color: var(--cyan); text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
-.logo-small { font-size: 26px; }
+/* .logo-small is gone with the in-game header logos — in-game, the header
+   carries the LB home mark and the board says what game it is. */
 .logo.small { font-size: 26px; letter-spacing: 1px; }
 .tagline { color: var(--muted); margin-top: 4px; }
 
@@ -89,33 +89,11 @@ input, textarea { user-select: text; }
 .btn-pass-warn:not(:disabled) { background: #c0392b; color: #fff; }
 
 /* ---- Game header ---- */
-
-.game-header {
-  position: sticky; top: 0; z-index: 6;
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: 8px 12px; background: var(--panel);
-  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-  padding-bottom: 10px;
-  /* The panel bar spans full width, but its CONTENTS are centred inside the same
-     --shell-max column as the board (via symmetric left/right padding), so the
-     title and room/leave chips sit beside the board — never pinned to the far
-     window corners. The right padding also reserves the 48px the fixed burger
-     occupies. Because both this padding AND the burger's inset (below) are
-     computed from --shell-max, the burger can never overlap a header chip at
-     any width — the reserved gap stays constant as the window resizes. */
-  padding-left:  max(18px, calc(50% - var(--shell-max) / 2));
-  padding-right: max(58px, calc(50% - var(--shell-max) / 2 + 58px));
-}
-.game-header .logo { margin-right: auto; }
-
-/* Anchor the burger (and its dropdown) to the game column's right edge at every
-   width; max() clamps it to the window corner on narrow screens. No breakpoint —
-   the reserve in .game-header tracks the exact same expression, so they stay in
-   lockstep and never collide. */
-#screen-game:not(.hidden) ~ #btn-menu,
-#screen-game:not(.hidden) ~ #app-menu {
-  right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - var(--shell-max) / 2 + 6px));
-}
+/* The game-screen header is the unified `.game-header` in shared.css (layout,
+   centring, sticky, the home-link/LB mark and the .menu-slot the hamburger is
+   moved into). Nothing kit- or game-specific is needed here — no padding
+   reserve for the burger, no `#btn-menu { right: … }` anchor. Only the chips
+   below are ours. */
 
 /* Tutorial header — fixed two-line layout so a long title never spills to a
    third line: buttons on top, title centred below. */
@@ -257,11 +235,15 @@ input, textarea { user-select: text; }
 
 .modal {
   position: fixed; inset: 0; background: rgba(10, 15, 22, 0.7);
-  display: flex; align-items: center; justify-content: center; z-index: 50;
+  /* z 950 matches shared.css's .modal — the unified .game-header (z 971) sits
+     above the veil BY DESIGN so the burger/home link stay reachable; the
+     .modal top padding from shared.css keeps cards clear of the bar. */
+  display: flex; align-items: center; justify-content: center; z-index: 950;
 }
 .modal-card {
   position: relative; background: var(--panel); border-radius: var(--panel-radius);
-  padding: 22px 26px; width: min(560px, 94vw); max-height: 86vh; display: flex; flex-direction: column;
+  padding: 22px 26px; width: min(560px, 94vw); max-height: min(86vh, 100%);
+  display: flex; flex-direction: column;
 }
 .modal-narrow { width: min(420px, 94vw); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }

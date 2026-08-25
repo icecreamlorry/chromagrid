@@ -92,8 +92,6 @@ input, textarea { user-select: text; }
   text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 
-.logo-small { font-size: 26px; }
-
 .tagline { color: var(--muted); margin-top: 4px; }
 
 /* Tiny version number tucked next to the game name on every screen. */
@@ -182,17 +180,10 @@ input, textarea { user-select: text; }
 
 /* ---- Game header ---- */
 
-.game-header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 10px 18px;
-  background: var(--panel);
-}
-/* Logo pushes the room code + actions to the right; they wrap to a second row
-   on narrow screens instead of sliding under the fixed menu button. */
-.game-header .logo { margin-right: auto; }
+/* The header itself (layout, hamburger slot, home link) is the shared
+   .game-header component in shared.css. All this game supplies is the width of
+   the centred column its content lines up with — the same 760px as .table. */
+:root { --shell-max: 760px; }
 
 .chip {
   background: var(--panel-light);
@@ -472,7 +463,7 @@ input, textarea { user-select: text; }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 950; /* match shared.css .modal — under the .game-header (971) by design */
 }
 
 .modal-card {
@@ -648,34 +639,16 @@ input, textarea { user-select: text; }
      column never clips its top. */
   .table { justify-content: center; }
 
-  /* Below this, the player panels' name/score/tile-count row and the header's
-     room/resign/leave chips no longer have enough room and start squeezing,
-     wrapping and drifting off-centre instead of the clean centred column
-     this is meant to be — this is desktop chrome, not the mobile layout
-     (that's the separate, actually-narrow-tuned layout below 561px). Rather
-     than let that keep shrinking into something that looks broken, stop
-     shrinking here and let html/body's own overflow:hidden simply cover
-     the excess — a frozen, still-correct column beats a squished one. */
-  .table, .game-header { min-width: 660px; }
-
-  /* Align the header to the same centred column as the table so the logo and
-     room/leave controls line up with the board instead of spreading across the
-     full width of a wide window. */
-  .game-header {
-    width: min(100%, 760px);
-    margin-inline: auto;
-    border-radius: 0 0 var(--panel-radius) var(--panel-radius);
-  }
-
-  /* Pull the menu button (and its dropdown) in to the right edge of the centred
-     game column so it sits next to the content instead of way out in the
-     viewport corner. Falls back to the corner on narrower windows. Scoped to
-     the game screen — landing/lobby keep the corner button. (The button +
-     dropdown are injected by the shared account-ui as #btn-menu / #app-menu.) */
-  body[data-screen="game"] #btn-menu,
-  body[data-screen="game"] #app-menu {
-    right: max(env(safe-area-inset-right, 0px) + 10px, calc(50% - 380px + 6px));
-  }
+  /* Below this, the player panels' name/score/tile-count row no longer has
+     enough room and starts squeezing, wrapping and drifting off-centre instead
+     of the clean centred column this is meant to be — this is desktop chrome,
+     not the mobile layout (that's the separate, actually-narrow-tuned layout
+     below 561px). Rather than let that keep shrinking into something that looks
+     broken, stop shrinking here and let html/body's own overflow:hidden simply
+     cover the excess — a frozen, still-correct column beats a squished one.
+     The header is deliberately NOT frozen with it: it holds the hamburger now,
+     which must never be pushed off the right edge. */
+  .table { min-width: 660px; }
 }
 
 /* ---- Mobile ---- */
@@ -843,10 +816,6 @@ input, textarea { user-select: text; }
    Only the notify item's "on" highlight is Wurdz-specific (shared has no
    .menu-item.on), so we keep just that one rule. */
 .menu-item.on { color: var(--cyan); }
-
-/* Keep the in-header controls clear of the fixed menu button, and below the
-   iPhone safe-area / notch. */
-.game-header { padding-right: 58px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 
 #profile-signedout { display: flex; flex-direction: column; gap: 14px; }
 #profile-signedout .muted { line-height: 1.5; margin: 0; }

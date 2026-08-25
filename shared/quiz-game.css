@@ -7,9 +7,12 @@
    rows that carry each game's artwork). Change a panel once here, not in four
    files. Colours are theme vars from shared.css; the display font is one var.
 
-   Correct/incorrect greens/reds (--ok-*/--bad-*) are fixed on purpose — they're
-   semantic, not theme decoration — and stay legible for colour-blind players via
-   a solid-fill vs dashed-border + ✓/✗ glyph, not hue alone. */
+   Correct/incorrect greens/reds (the --ok- and --bad- vars) are fixed on
+   purpose — they're semantic, not theme decoration — and stay legible for
+   colour-blind players via a solid-fill vs dashed-border + ✓/✗ glyph, not hue
+   alone. (Never write those var names with a trailing star-slash wildcard in a
+   comment — it closes the comment early and swallows the @import + :root
+   below, which is exactly how the Fredoka font went missing once.) */
 
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
 
@@ -78,15 +81,13 @@ button, button:hover, button:focus { box-shadow: none; }
 #account-line strong { color: var(--cyan); }
 .account-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 /* ---- Top bars ---- */
-.game-bar { padding: calc(env(safe-area-inset-top, 0px) + 8px) 64px 8px 12px; display: flex; align-items: center; gap: 8px; }
-.game-bar, .players-strip { max-width: 640px; margin-inline: auto; width: 100%; }
-/* Anchor the burger to the game column's right edge at every width (max() clamps
-   it to the window corner on narrow screens). No breakpoint — .game-bar always
-   reserves the 64px on its right, so the two stay in lockstep and never collide. */
-#screen-game:not(.hidden) ~ #btn-menu,
-#screen-game:not(.hidden) ~ #app-menu {
-  right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - 320px + 6px));
-}
+/* The game-screen header is the unified `.game-header` in shared.css: it centres
+   its contents in the --shell-max column below and holds the .menu-slot the
+   hamburger is moved into, so this kit needs no bar layout, no 64px reserve for
+   the burger and no `#btn-menu { right: … }` anchor. The quiz column is 640px —
+   the same width .players-strip has always used. */
+:root { --shell-max: 640px; }
+.players-strip { max-width: 640px; margin-inline: auto; width: 100%; }
 .chip {
   background: color-mix(in srgb, var(--cyan) 10%, transparent);
   border: 1.5px solid color-mix(in srgb, var(--cyan) 22%, transparent);

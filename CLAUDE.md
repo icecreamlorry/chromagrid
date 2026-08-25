@@ -12,41 +12,65 @@ These two layout bugs have been fixed in every game one at a time. **When you
 add or restyle a game, do these up front and verify them, so we stop re-fixing
 the same things.**
 
-### 1. The floating hamburger menu (`#btn-menu`) must not overlap anything
+### 1. Every game screen uses the ONE shared `.game-header`
 
-`shared/account-ui.js` injects a **`position: fixed` hamburger button at the
-top-right corner** (`#btn-menu`, z-index 970), on *every* screen. Any content a
-screen puts in that corner will collide with it unless the screen reserves the
-space — **and it must never be pinned to the far window corner on wide screens**
-either (too far from the centred content). Both are solved by one rule: the
-header content and the burger's inset must **derive from the same column-width
-number** so they can't drift into an overlap as the window resizes.
+The hamburger used to be a `position: fixed` corner button that every game had
+to dodge with its own padding reserve and its own `#btn-menu { right: … }`
+anchor — five copies of the same magic number, and it broke every time anything
+moved. **That is gone.** There is now one header component, defined once in
+`shared/shared.css` (not in a kit file, so solo games get it too), and the
+burger is an ordinary flex item *inside* it.
 
-**Both game kits already do this — reuse them, don't re-hand-roll the padding:**
+**The markup contract — copy this, add nothing for the burger:**
 
-- **Table games** (`shared/table-game.css`): the column width is the single var
-  `:root { --shell-max: 680px }`. `.game-header` is a full-width panel bar whose
-  *content* is centred inside that column via symmetric padding
-  (`padding-left/right: max(edge, calc(50% - var(--shell-max)/2 [+58px]))`), the
-  `.table` board column is `max-width: var(--shell-max)`, and the burger is
-  anchored to the column's right edge with the **same** expression
-  (`#screen-game:not(.hidden) ~ #btn-menu { right: max(edge, calc(50% - var(--shell-max)/2 + 6px)) }`,
-  no breakpoint — `max()` clamps it to the window corner on narrow screens). The
-  right padding reserves the button, and because both sides track `--shell-max`
-  the reserved gap is constant at every width → the burger can never overlap a
-  chip, and the header sits beside the board, not in the corner. A new table game
-  gets all of this free from `.game-header`/`.table`; **never re-add per-game
-  padding or a `min-width` burger media query.**
-- **Quiz games** (`shared/quiz-game.css`): same idea via
-  `.game-bar { max-width: 640px; margin-inline: auto }` (reserves 64px on the
-  right) + the matching gate-free burger anchor.
-- **Lobby ("My Games")** — the shared card header clears the button via
-  `shared/shared.css` (`#screen-lobby .bar { padding-right: 52px }`), so you get
-  this for free **as long as** you don't override `.bar`.
+```html
+<header class="game-header">
+  <a class="home-link" href="../" title="All games" aria-label="LB Games — all games">
+    <span class="lb-mark"></span>
+  </a>
+  <!-- left-side chips (room code, …) -->
+  <span class="grow"></span>
+  <!-- right-side chips (mode, timer, draw, resign, leave, …) -->
+  <span class="menu-slot"></span>
+</header>
+```
 
-Verify at ~412px, ~760px (the nastiest — burger and chips both near the corner)
-and ≥1100px wide that the button never overlaps the Room/Leave/Resign chips and
-that the header content stays beside the board rather than in the window corner.
+- Exactly one `.grow` spacer; **`.menu-slot` is always the last child.**
+- `shared/account-ui.js` (`mountMenu()`, plus a rAF-debounced MutationObserver on
+  class flips) moves `#btn-menu` + `#app-menu` into whichever `.menu-slot` is
+  visible, and back to `<body>` on screens that have none. So the fixed corner
+  button still exists — **only as the fallback for slotless screens** (landing,
+  lobby, tutorial). Never re-add a per-game `#btn-menu` rule: give the screen a
+  `.game-header` instead.
+- The header centres its contents in the game's column via **symmetric** padding
+  derived from `--shell-max` — no reserve, because nothing is floating over it.
+  A game sets that column width once (`:root { --shell-max: … }`; 680px default
+  in shared.css, 640px for the quiz kit) and its board/strip uses the same var.
+- In-game the header shows the **LB mark home link to `../`**, not the game name
+  (the board says what game it is). The name stays on the landing card, lobby,
+  tutorial and `<title>`. The mark is `shared/lb-mark.svg` used as a CSS mask so
+  its gradient comes from theme vars (`--lb-mark-a/b`, overridden by light
+  themes) — never an `<img>`, which couldn't adapt.
+- The header is `position: sticky; z-index: 971` — above the modal veil, so the
+  burger and home link stay reachable under an overlay. Don't create a stacking
+  context (transform/filter/opacity/z-index) on an ancestor of it. **Every
+  `.modal` must sit at z 950** (shared.css's value — table-game.css and wurdz
+  were unified to it); the shared `.modal` top padding keeps cards clear of the
+  bar, so don't shrink it. Chromagrid is the one divergence: its header is a
+  body-level sibling of its overlay screens, so it hides itself while one is
+  open (`body:has(.screen:not(.hidden))`) and the corner fallback takes over;
+  it also publishes `--shell-max` from JS because its board width is
+  height-derived.
+- The `.lb-mark` mask needs a same-origin HTTP fetch — over `file://` it renders
+  blank. Judge it via a local server or the live site, never a file:// open.
+- **Lobby ("My Games")** has no slot, so the fixed fallback applies and the
+  shared card header still clears it via `#screen-lobby .bar { padding-right:
+  52px }` — you get that free **as long as** you don't override `.bar`.
+
+Verify at ~412px (where the header wraps), ~760px and ≥1100px that the burger
+sits at the right edge of the game column beside the chips, that its dropdown
+opens fully on-screen, and that switching screen ↔ landing moves it back to the
+corner.
 
 ### 2. No horizontal scroll; screens are centred
 
@@ -70,8 +94,8 @@ html, body { height: 100%; overflow: hidden; }
 - **The scrolling game screen owns its vertical scroll, not the inner column.**
   A scrollbar on the centred `.table`/column floats at the *column* edge (inset
   from the window) which looks broken. Put `overflow-y: auto` on `#screen-game`
-  itself (full width) and make the header `position: sticky; top: 0` so it stays
-  put — then any scrollbar sits at the very window edge, and the board's
+  itself (full width); the shared `.game-header` is already `position: sticky;
+  top: 0` so it stays put — then any scrollbar sits at the very window edge, and the board's
   `min(…, 62vh)` cap usually means no scrollbar is needed at all.
 - **A square grid board that must fit a flex cell** (Scramblr's `.board-box` in
   the header/roster/foot column): size it with container-query units, not a
@@ -134,6 +158,13 @@ Watch for: valid/invalid states, status/turn indicators, categories/suits/teams,
   it gets one for free; just read `$('landing-name-input').value` (or
   `getGuestName()`) at create/join time. This is what keeps landing
   functionality identical across the table, word and quiz families.
+  `account-ui.js` also owns **where the hamburger lives**: `mountMenu()` moves
+  `#btn-menu`/`#app-menu` into the visible `.menu-slot` (see checklist §1) and
+  back to `<body>` when there isn't one. A game never positions the burger.
+- `shared/shared.css` — the design system **and the one `.game-header`** used by
+  every game's game screen (plus `.home-link`/`.lb-mark` and the `.menu-slot`
+  rules). It lives here, not in a kit file, because the solo/word games link
+  only this stylesheet.
 - `shared/boot.js` — the boot veil (lifts on `LBBoot.done()`, 8s failsafe).
 - `shared/supabaseClient.js` imports supabase-js from a **CDN**, so the whole app
   graph only evaluates when that CDN is reachable. In a network-blocked sandbox
@@ -190,13 +221,15 @@ Player panels are a two-row `.player-panel` (`.pp-row.pp-id` name on top,
 `.pp-row.pp-meta` captures/clock/turn below) so a long name isn't cut off and
 the turn pill never wraps — copy Chess/Weiqi's markup + the `.clock` styles.
 
-- `shared/table-game.css` — **the whole game-shell layout** (landing, header +
-  hamburger clearance, panels, clocks, overlays, modals, setup, lobby, controls,
-  tutorial screen). All four table games `<link>` it after `shared.css`; each
-  game's own `css/style.css` is then ONLY its board + piece rendering. Change a
-  panel once here, not in 20 files. **Never re-add the layout per game, and never
-  hardcode `font-family`/`--text`/`--panel` in a game — it all comes from here +
-  the theme vars.**
+- `shared/table-game.css` — **the whole game-shell layout** (landing, chips,
+  panels, clocks, overlays, modals, setup, lobby, controls, tutorial screen).
+  The game-screen header itself is not here — it is the unified `.game-header`
+  in `shared.css` (checklist §1), and this kit just takes shared.css's default
+  `--shell-max: 680px` for its board column. All four table games `<link>` it
+  after `shared.css`; each game's own `css/style.css` is then ONLY its board +
+  piece rendering. Change a panel once here, not in 20 files. **Never re-add the
+  layout per game, and never hardcode `font-family`/`--text`/`--panel` in a game
+  — it all comes from here + the theme vars.**
 
 **Colours + fonts are theme vars, always.** `shared.css` defines, per theme,
 `--text` / `--muted` / `--good` / `--bad` / `--cyan-dark` and the content font
@@ -239,7 +272,9 @@ dataset against the clock, solo or in a room" game:
 
 - `shared/quiz-game.css` — **the whole quiz game-shell layout** (landing/lobby
   cards, buttons, chips, players strip, prompt bar, mode-config picker,
-  countdown, results table, overlays, status). Linked after `shared.css` and
+  countdown, results table, overlays, status). The game-screen header is the
+  shared `.game-header` (checklist §1); this kit only sets the quiz column width
+  (`:root { --shell-max: 640px }`, matching `.players-strip`). Linked after `shared.css` and
   before the game's own `css/style.css`, which is then ONLY the board/stage
   rendering (map, flag grid, periodic table, trivia card + the order/review rows
   that carry each game's artwork). The display font is one var, `--font-display`

@@ -45,7 +45,8 @@
 
   <!-- Game Screen -->
   <section id="screen-game" class="screen hidden">
-    <header class="bar game-bar">
+    <header class="game-header">
+      <a class="home-link" href="../" title="All games" aria-label="LB Games — all games"><span class="lb-mark"></span></a>
       <button id="room-code-chip" class="chip" title="Copy invite link">ROOM <strong id="room-code-text"></strong></button>
       <span class="grow"></span>
       <span id="mode-chip" class="chip mode-chip hidden">TIMELINE</span>
@@ -55,6 +56,7 @@
           <path d="M6.5 2H4a1.2 1.2 0 0 0-1.2 1.2v9.6A1.2 1.2 0 0 0 4 14h2.5"/><path d="M10 5.2 13 8l-3 2.8"/><path d="M13 8H6"/>
         </svg>
       </button>
+      <span class="menu-slot"></span>
     </header>
 
     <div id="players-strip" class="players-strip"></div>

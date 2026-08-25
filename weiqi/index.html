@@ -51,9 +51,10 @@
   <!-- Game screen -->
   <section id="screen-game" class="screen hidden">
     <header class="game-header">
-      <span class="logo logo-small">Weiqi</span>
+      <a class="home-link" href="../" title="All games" aria-label="LB Games — all games"><span class="lb-mark"></span></a>
       <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
       <span id="match-chip" class="chip hidden"></span>
+      <span class="grow"></span>
       <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Forfeit this game">Resign</button>
       <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -62,6 +63,7 @@
           <path d="M13 8H6"/>
         </svg>
       </button>
+      <span class="menu-slot"></span>
     </header>
 
     <div class="table">

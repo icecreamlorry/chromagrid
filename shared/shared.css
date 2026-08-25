@@ -62,6 +62,21 @@ html { overflow-x: clip; }
   --cyan-dark: color-mix(in srgb, var(--cyan) 80%, #000);
   --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
 
+  /* ── the centred game column ───────────────────────────────────────────
+     ONE number per game: the unified .game-header centres its contents in a
+     column this wide, and each game's board/strip uses the same var for its
+     own max-width. Kits and games override it on :root (quiz = 640px,
+     wurdz = 760px, …). Nothing else — no padding reserve, no burger inset —
+     is ever derived from it by hand again. */
+  --shell-max: 680px;
+
+  /* Gradient of the LB mark in the game header (a CSS mask, so it recolours
+     per theme). Dark themes get the bright pair; light themes (any theme that
+     overrides --text to dark ink) override to a deep pair next to their other
+     var overrides, so the mark never washes out on a pale panel. */
+  --lb-mark-a: #3fa7c4;
+  --lb-mark-b: #9ed44e;
+
   /* Physical board surfaces shared by the table games (chess/draughts/backgammon
      squares, weiqi goban). Theme-independent by default; a theme may override. */
   --sq-light: #ecd7ac;
@@ -307,6 +322,10 @@ button:disabled:hover {
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   padding: 20px;
+  /* The unified .game-header (z 971, ~56px tall) deliberately stays above the
+     veil so the burger/home link are always reachable — the extra top padding
+     keeps tall modal cards from starting underneath the bar. */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
   overflow-y: auto;
   animation: ov-fade 0.3s ease;
 }
@@ -475,7 +494,59 @@ button:disabled:hover {
 .lb-tabs  { margin-bottom: 2px; }
 .lb-tabs .tab { padding: 6px 0; }
 
+/* ── the unified game header ─────────────────────────────────────────────── */
+/* ONE header for every game's game screen (table, quiz, word, solo). Games put
+   whatever chips they like on either side of the single .grow spacer; they add
+   NOTHING for the hamburger — it is reparented into the trailing .menu-slot by
+   account-ui.js, so it is an ordinary flex item pinned right by layout. That
+   kills the old padding reserves and per-game `#btn-menu { right: … }` anchors
+   for good: there is no fixed element to dodge any more.
+
+   Markup contract (see CLAUDE.md):
+     <header class="game-header">
+       <a class="home-link" href="../" aria-label="LB Games — all games">
+         <span class="lb-mark"></span></a>
+       …left chips…  <span class="grow"></span>  …right chips…
+       <span class="menu-slot"></span>          ← always last
+     </header> */
+.game-header {
+  /* Above the modal veil (.modal 950, confirm 960): the burger lives in here
+     now, and it is how you reach Leave/quit — it must never be trapped under a
+     popup. This replaces the old fixed button's z-index: 970 guarantee. */
+  position: sticky; top: 0; z-index: 971;
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 8px 10px;
+  background: var(--panel);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-bottom: 10px;
+  /* Full-width panel bar whose CONTENTS are centred in the --shell-max column,
+     so the chips sit beside the board instead of in the far window corners.
+     SYMMETRIC — no burger reserve, because the burger is in-flow. */
+  padding-left:  max(12px, calc(50% - var(--shell-max) / 2));
+  padding-right: max(12px, calc(50% - var(--shell-max) / 2));
+}
+.game-header .grow { flex: 1 1 0; min-width: 0; }
+
+/* The home link replaces the game name in-game (the board says what game it
+   is); the name stays on the landing card, lobby, tutorial and <title>. */
+.home-link { display: flex; align-items: center; flex: none; border-radius: 8px; }
+.home-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+/* A CSS mask, not an <img>, so the mark's gradient comes from theme vars and
+   stays legible on light and dark panels alike. */
+.lb-mark {
+  display: block; width: 34px; height: 26px;
+  background: linear-gradient(60deg, var(--lb-mark-a) 20%, var(--lb-mark-b) 85%);
+  -webkit-mask: url("lb-mark.svg") center / contain no-repeat;
+          mask: url("lb-mark.svg") center / contain no-repeat;
+}
+
 /* ── hamburger menu ──────────────────────────────────────────────────────── */
+/* The rules below are the FALLBACK for slotless screens (landing, lobby,
+   tutorial), where the button stays parked in the window corner as a fixed
+   element. On any screen that has a visible .menu-slot, account-ui.js moves the
+   button + dropdown into it and .menu-slot's overrides (further down) take
+   over. Don't add a new `#btn-menu { right: … }` anywhere — give the screen a
+   .game-header with a .menu-slot instead. */
 
 #btn-menu {
   position: fixed;
@@ -543,6 +614,22 @@ button:disabled:hover {
 .menu-item.menu-sep { border-top: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent); margin-top: 3px; padding-top: 11px; }
 .menu-item:hover { background: color-mix(in srgb, var(--cyan) 12%, transparent); color: var(--cyan); }
 .menu-item svg   { flex-shrink: 0; opacity: 0.85; }
+
+/* Slotted (moved inside a .game-header by account-ui.js): the button becomes an
+   ordinary flex item and the dropdown anchors to the slot instead of the window.
+   Higher specificity than the fixed rules above, so order doesn't matter.
+   `margin-left: auto` keeps the slot at the RIGHT END OF ITS LINE even when the
+   header wraps on a narrow phone (on an unwrapped line .grow has already eaten
+   the free space, so it's a no-op) — otherwise the burger would end up mid-row
+   after a wrap and its right-aligned dropdown would hang off the left edge. */
+.menu-slot { position: relative; flex: none; margin-left: auto; }
+.menu-slot #btn-menu { position: static; }
+.menu-slot #app-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+}
 
 /* ── landing account bar ──────────────────────────────────────────────── */
 .lb-account {
@@ -743,6 +830,10 @@ button:disabled:hover {
   --muted:  #8c8578;
   --good:   #3f9e6a;
   --bad:    #c0563f;
+  /* Light panel → the deep half of the LB mark's gradient (the bright default
+     pair would wash out on near-white). */
+  --lb-mark-a: #1c4478;
+  --lb-mark-b: #4d9d74;
   /* Board-tints (rgba(var(--neon), α)) take a soft denim-blue instead of the neon
      cyan, so the games' lines/fills/letters read on cream while staying pastel —
      not the glowing aqua of the dark themes, nor a hard steel. The lighter --cyan

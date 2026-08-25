@@ -47,13 +47,23 @@ function initLayout() {
     const cellByW = Math.floor(
       (window.innerWidth - 2 * bodyPadX - 2 * gridPadX - (COLS - 1) * GAP) / COLS
     );
-    const cellByH = Math.floor((window.innerHeight - 248) / ROWS);
+    // Reserve for the unified game header (56px: 10+10 padding around the
+    // 36px burger — the tallest flex item — plus its safe-area inset), which
+    // replaced body's old 22px menu-button padding.
+    const cellByH = Math.floor((window.innerHeight - 288) / ROWS);
     CELL = Math.min(52, Math.max(28, Math.min(cellByW, cellByH)));
   } else {
     GAP = 6;
-    const cellByH = Math.floor((window.innerHeight - 320) / ROWS);
+    // + the unified game header (56px incl. the 36px burger) and body's gap.
+    const cellByH = Math.floor((window.innerHeight - 374) / ROWS);
     CELL = Math.min(52, Math.max(34, cellByH));
   }
+  // CELL is height-derived, so the real board width varies with the viewport —
+  // publish it as --shell-max so the header column hugs the board at every
+  // size instead of assuming the 52px-cell maximum.
+  const gridPadX = window.innerWidth <= 760 ? 3 : 12;
+  const shellW = COLS * CELL + (COLS - 1) * GAP + 2 * gridPadX + 2;
+  document.documentElement.style.setProperty('--shell-max', shellW + 'px');
 }
 
 // ── canvas renderer ────────────────────────────────────────────────────

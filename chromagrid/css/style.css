@@ -9,7 +9,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 16px 16px;
+  /* No top padding: the unified .game-header is the first thing on the page
+     and brings its own safe-area inset. */
+  padding: 0 16px 16px;
   min-height: 100vh;
   font-family: var(--font-mono);
   color: var(--cyan);
@@ -18,6 +20,30 @@ body {
 }
 
 body.playing { touch-action: none; }
+
+/* The centred game column. 484px is the 52px-cell maximum (8×52 + 7×6 inside
+   #grid's 12px padding + 1px border); initLayout() republishes the real
+   height-derived board width on documentElement so the header's home link and
+   hamburger always line up with the board's own edges. */
+:root { --shell-max: 484px; }
+
+/* body is a padded, centring flex column, so the shared header — which paints
+   a full-bleed bar and centres its own content — has to opt out of both.
+   Nothing here reserves space for the menu button; it is an ordinary flex item
+   inside the header now. */
+.game-header {
+  align-self: stretch; margin-inline: -16px;
+  /* The negative margin makes body (content box = viewport − 32px) the
+     containing block, so shared.css's 50%-based centring padding would resolve
+     16px short per side — use viewport units instead. */
+  padding-left:  max(12px, calc(50vw - var(--shell-max) / 2));
+  padding-right: max(12px, calc(50vw - var(--shell-max) / 2));
+}
+/* Chromagrid's header is a body-level sibling of its overlay screens, so hide
+   it while one is open (z 800 lobby) — the .menu-slot then goes invisible and
+   account-ui's mountMenu() falls back to the fixed corner burger, exactly like
+   the other games' lobbies. */
+body:has(.screen:not(.hidden)) .game-header { display: none; }
 
 #stage {
   display: flex;
@@ -49,7 +75,9 @@ body::after {
   z-index: 1000;
 }
 
-header:not(.bar) {
+/* The retro wordmark block only — never the shared .game-header above it
+   (which is a horizontal bar) nor the lobby card's .bar header. */
+#board-col > header {
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -651,7 +679,8 @@ h1 {
 
 /* ── mobile layout ──────────────────────────────────────────────────── */
 @media (max-width: 760px) {
-  body  { padding: calc(env(safe-area-inset-top, 0px) + 22px) 12px 8px; gap: 6px; }
+  body  { padding: 0 12px 8px; gap: 6px; }
+  .game-header { margin-inline: -12px; }
   #grid { padding: 3px; }
   #board-col { gap: 6px; }
   h1 { font-size: 1.1rem; }

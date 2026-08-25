@@ -51,9 +51,10 @@
   <!-- Game screen -->
   <section id="screen-game" class="screen hidden">
     <header class="game-header">
-      <span class="logo logo-small">Chess</span>
+      <a class="home-link" href="../" title="All games" aria-label="LB Games — all games"><span class="lb-mark"></span></a>
       <button id="room-code-chip" class="chip" title="Copy invite link">Room: <strong id="room-code-text"></strong></button>
       <span id="match-chip" class="chip hidden"></span>
+      <span class="grow"></span>
       <button id="btn-draw" class="chip chip-button hidden" title="Offer a draw">½ Draw</button>
       <button id="btn-resign" class="chip chip-button chip-danger hidden" title="Forfeit this game">Resign</button>
       <button id="btn-leave" class="chip chip-button chip-icon" title="Leave" aria-label="Leave">
@@ -63,6 +64,7 @@
           <path d="M13 8H6"/>
         </svg>
       </button>
+      <span class="menu-slot"></span>
     </header>
 
     <div class="table">

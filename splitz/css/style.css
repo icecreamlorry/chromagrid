@@ -79,33 +79,25 @@ button, button:hover, button:focus { box-shadow: none; }
 .account-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 /* ---- Top bars ---- */
-/* Right padding clears the shared hamburger menu button (fixed top-right by
-   account-ui) with real breathing room, not just its bare width. */
-.game-bar { padding: calc(env(safe-area-inset-top, 0px) + 8px) 64px 8px 12px; }
+/* The game-screen header is the shared .game-header component (shared.css):
+   layout, safe-area inset, centred column and the in-flow hamburger slot all
+   come from there, so Splitz has nothing of its own to add here. */
 
-/* ---- Desktop: keep the header/roster in a centred column ---------------- */
-/* Mobile-first: below this width every rule here is a no-op and the header
-   fills the viewport like normal. Above it, the header and roster stay in a
-   Wurdz/Chromagrid-width column instead of stretching the ROOM/POOL/LEAVE
-   chips out across a wide window. The pannable grid itself (.board-wrap)
-   stays full-bleed on purpose — more visible board is a genuine desktop
-   win, unlike a header that just gets sparser as it stretches. The hand
-   tray and its action buttons already cap their own width (see .hand /
-   .foot-actions below) so they don't need this treatment. */
-.game-bar, .players-strip {
+/* ---- Desktop: keep the roster in a centred column ----------------------- */
+/* The header centres itself via --shell-max (shared .game-header); this rule
+   keeps the roster in the same 640px column instead of stretching across a
+   wide window. The pannable grid itself (.board-wrap) stays full-bleed on
+   purpose — more visible board is a genuine desktop win. The hand tray and
+   its action buttons already cap their own width (see .hand / .foot-actions
+   below) so they don't need this treatment. */
+.players-strip {
   max-width: 640px;
   margin-inline: auto;
   width: 100%;
 }
-@media (min-width: 561px) {
-  /* Pull the menu button (and its dropdown) in to the right edge of the
-     centred header column, same technique as Wurdz, instead of sitting out
-     in the true corner of a wide window disconnected from everything else. */
-  #screen-game:not(.hidden) ~ #btn-menu,
-  #screen-game:not(.hidden) ~ #app-menu {
-    right: max(calc(env(safe-area-inset-right, 0px) + 10px), calc(50% - 320px + 6px));
-  }
-}
+/* Same column for the shared header, which centres its content with padding
+   rather than a max-width (so its background still spans the window). */
+:root { --shell-max: 640px; }
 .chip {
   background: color-mix(in srgb, var(--cyan) 10%, transparent);
   border: 1.5px solid color-mix(in srgb, var(--cyan) 22%, transparent);

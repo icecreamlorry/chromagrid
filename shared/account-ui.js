@@ -687,6 +687,37 @@ function wireMenu() {
   }
 }
 
+// ---- hamburger placement --------------------------------------------------
+
+// The burger is injected at body level and styled `position: fixed` there, but
+// every game screen with a unified `.game-header` ends with an empty
+// `<span class="menu-slot">`. Move the button (and its dropdown) into whichever
+// slot is currently visible, so on a game screen it is an ordinary flex item
+// pinned right by layout — no fixed-corner overlaps, no per-game `right:` hacks.
+// Screens toggle with `.hidden { display: none !important }`, so `offsetParent`
+// is a correct "is this slot on screen?" test. Reparenting keeps listeners.
+function mountMenu() {
+  const btn = $('btn-menu');
+  const menu = $('app-menu');
+  if (!btn) return;
+  const slot = [...document.querySelectorAll('.menu-slot')].find(s => s.offsetParent !== null);
+  const target = slot || document.body;   // slotless screens keep the fixed corner button
+  if (btn.parentElement === target) return;
+  menu ? target.append(btn, menu) : target.append(btn);
+  _closeMenu?.();                          // never leave a dropdown orphaned mid-move
+}
+
+// Screens (and chips) flip classes, so watch class changes and re-check on the
+// next frame. The rAF debounce plus the cheap parent test above keep this free.
+function watchMenuMount() {
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; mountMenu(); });
+  }).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+}
+
 // ---- full wiring ----------------------------------------------------------
 
 let _closeMenu = null; // set by wireMenu so wire() can call it on Escape
@@ -785,6 +816,8 @@ function setupTheme() {
 
 async function init() {
   injectHTML();
+  mountMenu();        // park the burger in the visible header slot, if any
+  watchMenuMount();
   setupTheme();
 
   // Seed name from the shared guest-name key (before we know if signed in).
