@@ -5,7 +5,7 @@
 // drift. Re-run this whenever you tweak an icon.svg:
 //
 //   npm i -D playwright   # once (any headless-Chromium SVG rasteriser works)
-//   node tools/render-icons.mjs
+//   node scripts/render-icons.mjs
 //
 // Rendering goes through headless Chromium so gradients, clip-paths and rounded
 // corners come out exactly as the browser shows them; omitBackground keeps the
@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GAMES = [
   'chromagrid', 'wurdz', 'scramblr', 'splitz', 'lexicorp', 'atlaz', 'flagz',
-  'atomyx', 'buffz', 'chess', 'weiqi', 'draughts', 'backgammon', 'rummikub',
+  'atomyx', 'buffz', 'chess', 'weiqi', 'draughts', 'backgammon', 'rummikub', 'tools',
 ];
 const SIZES = [['apple-touch-icon.png', 180], ['icon-192.png', 192], ['icon-512.png', 512]];
 

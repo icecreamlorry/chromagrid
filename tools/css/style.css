@@ -1,0 +1,195 @@
+/* Tools — LB Games neon theme. Reuses shared.css for :root vars, buttons,
+   .field, .modal*, .status-line, .menu-item, .game-header, .hidden. Only the
+   tool picker card and the anagram boxes live here. */
+
+/* Box/letter font — clearer letterforms than Orbitron (D / A / R are distinct). */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&display=swap');
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body {
+  background-color: var(--dark);
+  background-image:
+    linear-gradient(rgba(var(--neon),0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--neon),0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.hidden { display: none !important; }
+/* The neon graph-paper backdrop is part of the Synth terminal look only. */
+:root[data-theme="maritime"] body,
+:root[data-theme="pastel"] body { background-image: none; }
+
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+#screen-landing { align-items: center; justify-content: center; padding: 20px; overflow-y: auto; overflow-x: hidden; }
+/* The tool screen owns its vertical scroll (the sticky .game-header stays put)
+   so any scrollbar sits at the window edge, not the column edge. */
+#screen-anagram { overflow-y: auto; overflow-x: hidden; }
+
+/* ---- Tool picker card ---- */
+.card {
+  width: min(420px, 92vw);
+  max-width: 100%;
+  background: var(--panel);
+  border: 1px solid rgba(var(--neon),0.22);
+  border-radius: var(--panel-radius);
+  padding: 26px 24px 22px;
+  box-shadow: var(--panel-aura);
+  display: flex; flex-direction: column; gap: 14px;
+  text-align: center;
+}
+.logo {
+  font-family: 'Orbitron', monospace; font-weight: 800; letter-spacing: 0.18em;
+  font-size: 2.2rem; margin: 0; color: var(--cyan);
+  text-shadow: var(--glow-cyan-lg);
+}
+.tagline { margin: 0; font-size: 0.66rem; letter-spacing: 0.3em; color: var(--magenta); text-shadow: var(--glow-magenta); }
+.hint { font-size: 0.62rem; color: var(--muted); line-height: 1.5; margin: 4px 0 0; }
+.hint strong { color: var(--cyan); }
+
+.tool-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.tool-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 16px 14px;
+  text-align: left; text-decoration: none; color: inherit;
+  background: color-mix(in srgb, var(--cyan) 5%, transparent);
+  border: 1px solid rgba(var(--neon),0.22);
+  border-radius: var(--panel-radius);
+  transition: border-color 0.2s, background 0.2s;
+}
+.tool-card:hover, .tool-card:focus-visible { border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 9%, transparent); outline: none; }
+.tool-name { font-family: var(--font-ui); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.15em; color: var(--cyan); text-shadow: var(--glow-cyan); }
+.tool-desc { font-size: 0.68rem; line-height: 1.6; color: var(--muted); letter-spacing: 0.03em; }
+.tool-open { font-family: var(--font-ui); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--cyan); text-shadow: var(--glow-cyan); }
+
+/* ---- Header chips ---- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(var(--neon),0.06); border: 1px solid rgba(var(--neon),0.25);
+  color: rgba(var(--neon),0.8); border-radius: 999px; padding: 5px 12px;
+  font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.08em;
+  text-decoration: none; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.chip strong { color: var(--cyan); letter-spacing: 0.12em; }
+a.chip:hover { border-color: var(--cyan); color: var(--cyan); }
+.chip-title { cursor: default; }
+
+/* ---- The anagram column ---- */
+.tool-col {
+  width: 100%; max-width: var(--shell-max); margin: 0 auto;
+  padding: 16px 12px 40px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(var(--neon),0.18);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-aura);
+  padding: 16px 16px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lbl {
+  margin: 0;
+  font-family: var(--font-ui); font-size: 0.62rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan);
+  text-shadow: var(--glow-cyan-sm);
+}
+.row-tight { justify-content: flex-start; }
+.field-short { width: 9em; flex: 0 0 auto; }
+/* .row .btn-ghost (shared.css) would stretch the steppers to fill the row. */
+.row .btn-step {
+  width: 38px; height: 38px; padding: 0; flex: 0 0 38px;
+  font-family: var(--font-mono); font-size: 1.1rem; line-height: 1;
+}
+.field-pool { text-transform: uppercase; font-size: 1rem; letter-spacing: 0.22em; font-family: 'Chakra Petch', var(--font-mono); }
+
+.btn-ghost {
+  background: var(--btn-ghost-bg); color: var(--btn-ghost-fg);
+  border: var(--btn-ghost-border); border-radius: var(--ui-radius);
+  padding: 8px 16px; font-family: var(--font-ui); font-size: 0.66rem;
+  font-weight: 600; letter-spacing: var(--ui-tracking); text-transform: var(--ui-transform);
+  cursor: pointer; touch-action: manipulation;
+}
+.btn-ghost:hover:not(:disabled) { color: var(--btn-ghost-hover-fg); border-color: var(--btn-ghost-hover-border); background: var(--btn-ghost-hover-bg); box-shadow: var(--btn-ghost-hover-shadow); filter: var(--btn-hover-filter); }
+.btn-ghost:disabled, .btn-primary:disabled { opacity: 0.4; cursor: default; }
+.btn-big { padding: 12px 22px; font-size: 0.8rem; }
+.actions .btn-primary { flex: 1 1 100%; }
+.actions .btn-ghost { flex: 1 1 auto; }
+
+/* ---- The letter boxes ---- */
+/* Cells are sized from the panel's real width (container units), so a whole
+   9-letter answer — or "5,4" as two words — sits on ONE line on a phone
+   instead of spilling a box onto a second row. --n (set by main.js) is the
+   number of cell-widths the shape needs: total letters + one per word gap. A
+   very long shape hits the 26px floor and wraps within its word instead. */
+.ana-words {
+  container-type: inline-size;
+  --n: 9;
+  --cell-gap: 5px;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  gap: 12px clamp(12px, 3vw, 20px);
+  padding: 6px 0 2px;
+}
+.ana-word { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--cell-gap); }
+.ana-cell {
+  --cell: clamp(26px, calc((100cqw - (var(--n) - 1) * var(--cell-gap) - 2px) / var(--n)), 46px);
+  width: var(--cell); height: calc(var(--cell) * 1.17);
+  padding: 0; margin: 0;
+  text-align: center; text-transform: uppercase;
+  font-family: 'Chakra Petch', var(--font-mono); font-size: calc(var(--cell) * 0.62); line-height: 1;
+  color: var(--text); caret-color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 4%, transparent);
+  border: 1.5px dashed rgba(var(--neon),0.3);
+  border-radius: var(--item-radius);
+  transition: border-color 0.12s, background 0.12s;
+  -webkit-appearance: none; appearance: none;
+}
+.ana-cell:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 25%, transparent); }
+/* Shuffled fodder: lighter, dashed — it is a suggestion, not a fact. */
+.ana-cell.jumbled { color: color-mix(in srgb, var(--text) 62%, transparent); font-weight: 600; }
+/* Locked by the solver: solid, bold, brighter, with a heavier baseline bar —
+   readable without the colour (checklist §3). */
+.ana-cell.locked {
+  color: var(--cyan); font-weight: 700;
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  border: 2px solid var(--cyan); border-bottom-width: 4px;
+  text-shadow: var(--glow-cyan-sm);
+}
+/* A locked letter that isn't in the fodder: wavy underline + ✕ badge + colour. */
+.ana-cell.missing {
+  color: var(--bad);
+  border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent);
+  text-decoration: underline wavy; text-decoration-thickness: 2px; text-underline-offset: 3px;
+  text-shadow: none;
+}
+.ana-cellwrap { position: relative; display: inline-block; }
+.ana-cellwrap.missing::after {
+  content: '✕'; position: absolute; top: -7px; right: -6px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--bad); color: var(--dark);
+  font: 700 0.6rem/15px var(--font-mono); text-align: center;
+  pointer-events: none;
+}
+
+.legend { margin: 4px 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.lg {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 20px; font: 700 0.7rem 'Chakra Petch', var(--font-mono); font-style: normal;
+  border-radius: 3px;
+}
+.lg-locked  { color: var(--cyan); border: 1.5px solid var(--cyan); border-bottom-width: 3px; background: color-mix(in srgb, var(--cyan) 12%, transparent); }
+.lg-jumbled { color: color-mix(in srgb, var(--text) 62%, transparent); border: 1px dashed rgba(var(--neon),0.4); font-weight: 600; }
+.lg-missing { color: var(--bad); border: 1.5px solid var(--bad); text-decoration: underline wavy; text-underline-offset: 2px; }
+
+.status-line { text-align: left; }
+.status-line.ok { color: var(--good); text-shadow: none; }
+.status-line.warn { color: var(--yellow); }
+.leftover { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.64rem; color: var(--muted); letter-spacing: 0.06em; }
+.leftover .lg { width: 22px; height: 24px; font-size: 0.85rem; color: var(--text); border: 1px dashed rgba(var(--neon),0.4); }
+
+@media (max-width: 420px) {
+  .panel { padding: 14px 12px 12px; }
+  .tool-col { padding: 12px 8px 32px; }
+}

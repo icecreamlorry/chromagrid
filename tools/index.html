@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TOOLS // LB GAMES</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#04040f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tools">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Configures the shared account layer (account-ui.js): it supplies the
+    // hamburger (theme picker, profile, "How to play", back to all games).
+    // Tools has no rooms, scores or lobby, so there is no account bar here.
+    window.LB_CONFIG = { gameSlug: 'tools', gameName: 'Tools' };
+  </script>
+  <script src="../shared/theme-boot.js"></script>
+</head>
+<body>
+
+  <!-- Boot veil + pre-paint auth hint (lifted by main.js via LBBoot.done()) -->
+  <script src="../shared/boot.js"></script>
+
+  <!-- Tool picker -->
+  <section id="screen-landing" class="screen">
+    <div class="card">
+      <h1 class="logo">TOOLS</h1>
+      <p class="tagline">// HANDY PUZZLE UTILITIES //</p>
+
+      <div class="tool-list">
+        <a class="tool-card" href="#anagram" data-tool="anagram">
+          <span class="tool-name">ANAGRAM HELPER</span>
+          <span class="tool-desc">Stuck on a crossword anagram? Lock in the crossing letters you already have, type the fodder from the clue, and shuffle the rest until the answer jumps out — no spoilers, just a nudge.</span>
+          <span class="tool-open">OPEN →</span>
+        </a>
+      </div>
+      <p class="hint">More tools will land here over time.</p>
+    </div>
+  </section>
+
+  <!-- Anagram helper -->
+  <section id="screen-anagram" class="screen hidden">
+    <header class="game-header">
+      <a class="home-link" href="../" title="All games" aria-label="LB Games — all games">
+        <span class="lb-mark"></span>
+      </a>
+      <a id="btn-back" class="chip" href="#" title="Back to the tool list">◀ TOOLS</a>
+      <span class="grow"></span>
+      <span class="chip chip-title">ANAGRAM <strong>HELPER</strong></span>
+      <span class="menu-slot"></span>
+    </header>
+
+    <div class="tool-col">
+      <div class="panel">
+        <label class="lbl" for="ana-length">How many letters is the answer?</label>
+        <div class="row row-tight">
+          <input id="ana-length" class="field field-short" type="text" inputmode="numeric" autocomplete="off"
+                 placeholder="e.g. 9, or 5,4" aria-describedby="ana-length-hint">
+          <button id="btn-len-minus" class="btn-ghost btn-step" type="button" title="One letter fewer" aria-label="One letter fewer">−</button>
+          <button id="btn-len-plus"  class="btn-ghost btn-step" type="button" title="One letter more"  aria-label="One letter more">+</button>
+        </div>
+        <p id="ana-length-hint" class="hint">Type <strong>5,4</strong> for a two-word answer and the boxes split to match.</p>
+      </div>
+
+      <div class="panel panel-boxes">
+        <p class="lbl">Type the letters you already know into their boxes</p>
+        <div id="ana-words" class="ana-words" aria-label="Answer boxes"></div>
+        <p class="legend" aria-hidden="true">
+          <span class="legend-item"><i class="lg lg-locked">A</i> locked in by you</span>
+          <span class="legend-item"><i class="lg lg-jumbled">A</i> shuffled fodder</span>
+          <span class="legend-item"><i class="lg lg-missing">A</i> not in your letters</span>
+        </p>
+      </div>
+
+      <div class="panel">
+        <label class="lbl" for="ana-pool">All the letters of the anagram</label>
+        <input id="ana-pool" class="field field-pool" type="text" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="Type the fodder from the clue">
+        <p id="ana-status" class="status-line" aria-live="polite"></p>
+        <div id="ana-leftover" class="leftover hidden" aria-live="polite"></div>
+      </div>
+
+      <div class="row actions">
+        <button id="btn-shuffle" class="btn-primary btn-big" type="button">⟳ SHUFFLE</button>
+        <button id="btn-unlock" class="btn-ghost" type="button" title="Clear every letter you typed into the boxes">UNLOCK ALL</button>
+        <button id="btn-reset" class="btn-ghost" type="button" title="Clear the boxes and the letters">RESET</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- How to use (opened by the shared menu's "How to play") -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-panel">
+      <button id="help-close" class="modal-close">✕</button>
+      <div class="modal-title">ANAGRAM HELPER</div>
+      <div class="help-body">
+        <p>A nudge for crossword anagrams that <strong>doesn't solve them for you</strong> — you still get the "aha".</p>
+        <p><strong>Length</strong> — enter how many letters the answer has. Two words? Type <strong>5,4</strong> and the boxes split.</p>
+        <p><strong>Known letters</strong> — type the crossing letters you already have straight into their boxes, crossword-style. They stay put with a solid border; backspace clears one.</p>
+        <p><strong>Fodder</strong> — type every letter of the anagram from the clue. The helper takes out the letters you've locked and deals the rest into the empty boxes.</p>
+        <p><strong>Shuffle</strong> as often as you like until a word leaps out. Spare letters (or a shortfall) are pointed out so you can check your fodder.</p>
+      </div>
+      <button id="help-got-it" class="btn-primary">GOT IT</button>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/account-ui.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

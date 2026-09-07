@@ -33,4 +33,4 @@ node rummikub/test/engine.test.mjs
 ## Icons
 
 Source of truth is `icons/icon.svg`; the PNGs are rendered from it by
-`tools/render-icons.mjs` (never hand-edit them).
+`scripts/render-icons.mjs` (never hand-edit them).

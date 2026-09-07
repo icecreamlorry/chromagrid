@@ -2,7 +2,9 @@
 
 A family of vanilla-JS web games (Chromagrid, Wurdz, Scramblr, Splitz, Lexicorp,
 Atlaz, Flagz, Atomyx, Buffz, Weiqi, Chess, Draughts, Backgammon, Rummikub) sharing one Supabase rooms/accounts/push
-layer under `shared/`. No build step — static HTML + ES modules, served straight
+layer under `shared/`, plus **Tools** (`tools/` — puzzle utilities such as the
+anagram helper; no rooms or scores, it only takes the shared chrome). Repo-level
+dev scripts live in `scripts/` (not `tools/`, which is the game). No build step — static HTML + ES modules, served straight
 from GitHub Pages (`icecreamlorry.github.io/lb-games`). Each game lives in its
 own folder with `index.html`, `js/`, `css/style.css`, `sw.js`, `manifest`.
 
@@ -313,9 +315,9 @@ dataset against the clock, solo or in a room" game:
 - **Icons: the source of truth is `<game>/icons/icon.svg`** (a rounded-square
   512 viewBox, `rx="104"`, transparent corners — see any game for the house
   style). The three PNGs (`apple-touch-icon.png` 180, `icon-192.png`,
-  `icon-512.png`) are RENDERED from it by `tools/render-icons.mjs` (headless
+  `icon-512.png`) are RENDERED from it by `scripts/render-icons.mjs` (headless
   Chromium, `omitBackground`), so never hand-edit a PNG — edit the SVG and
-  re-run `node tools/render-icons.mjs`. A new game just adds its `icon.svg` to
+  re-run `node scripts/render-icons.mjs`. A new game just adds its `icon.svg` to
   the `GAMES` list there. The root `favicon.svg` is the shared LB Games logo.
 
 ## Git
